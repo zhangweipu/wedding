@@ -226,7 +226,7 @@ async function handleApi(req, res, u) {
       if (team !== g.team && body.forceTeam) g.team = team;
     } else {
       if (!g) g = { id, coins: 0 };
-      g.name = requested || '神秘来宾';
+      g.name = requested || '到场贵宾';
       g.team = team;
       g.nameLocked = true;
       g.renameAllowed = false;
@@ -398,7 +398,7 @@ async function handleApi(req, res, u) {
       const g = state.guests[body.uid];
       const name = String(body.name || '').trim().slice(0, 12);
       if (!g || !name) return sendJson(res, { ok: false, msg: '参数不对' }, 400);
-      if (BLOCK_WORDS.some((w) => name.includes(w))) return sendJson(res, { ok: false, msg: '名字不合规' });
+      if (BLOCK_WORDS.some((w) => name.includes(w))) return sendJson(res, { ok: false, msg: '这个名字不太合适，换一个吧' });
       g.name = name;
       g.renameAllowed = false;
       markDirty();
