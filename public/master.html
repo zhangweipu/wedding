@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#2B1D16">
+<title>总控台</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{
+  font-family:-apple-system,"PingFang SC","Helvetica Neue",sans-serif;
+  background:#2B1D16;color:#F0E6D8;min-height:100vh;padding:16px 14px 60px;max-width:860px;margin:0 auto;
+}
+h1{font-size:18px;font-weight:500;letter-spacing:.16em;color:#E8C87E;margin-bottom:2px}
+.sub{font-size:12px;color:#9C8B7C;margin-bottom:16px}
+.krow{display:flex;gap:10px;margin-bottom:18px}
+.krow input{flex:1;border:1px solid #4A382C;background:#3A2A20;border-radius:10px;padding:11px 12px;color:#F0E6D8;font-size:15px}
+.krow button{border:0;border-radius:10px;background:#B08D3F;color:#2B1D16;font-size:14px;font-weight:600;padding:0 22px;letter-spacing:.12em}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{color:#9C8B7C;font-weight:400;text-align:left;padding:8px 6px;border-bottom:1px solid #4A382C;font-size:11px;letter-spacing:.08em}
+td{padding:9px 6px;border-bottom:1px solid #3A2A20;vertical-align:middle}
+tr.off td{opacity:.45}
+.nm{font-weight:600;color:#F7EEDD}
+.tag{display:inline-block;font-size:10px;padding:2px 7px;border-radius:8px;margin-left:5px;vertical-align:1px}
+.tag.mute{background:#7A1F30;color:#F5D9DC}
+.tag.ok{background:#2E4A33;color:#C9E5CD}
+.ops{display:flex;gap:6px;flex-wrap:wrap}
+.ops button, .detail button{
+  border:1px solid #5A4636;background:#3A2A20;color:#E8C87E;border-radius:8px;
+  font-size:11px;padding:5px 9px;letter-spacing:.05em;cursor:pointer;white-space:nowrap;
+}
+.ops button.warn{border-color:#7A1F30;color:#F5D9DC;background:#4A2029}
+.ops button:disabled{opacity:.35}
+.empty{color:#9C8B7C;text-align:center;padding:30px 0;font-size:13px}
+.detail{background:#3A2A20;border-radius:12px;padding:14px;margin-top:16px;display:none}
+.detail.on{display:block}
+.detail h3{font-size:14px;color:#E8C87E;letter-spacing:.1em;margin-bottom:10px;font-weight:500}
+.detail h3 em{font-style:normal;color:#9C8B7C;font-size:11px;margin-left:8px}
+.msgrow{font-size:12px;padding:6px 0;border-bottom:1px solid #4A382C;line-height:1.6}
+.msgrow b{color:#C9B48F;font-weight:400;margin-right:8px}
+.msgrow i{font-style:normal;color:#8C7566;font-size:10px;margin-left:8px}
+.stat{font-size:11px;color:#9C8B7C;margin-bottom:10px;line-height:1.8}
+#toast{position:fixed;left:50%;bottom:36px;transform:translateX(-50%) translateY(20px);
+  background:#E8C87E;color:#2B1D16;font-size:13px;padding:10px 18px;border-radius:20px;opacity:0;
+  transition:.25s;pointer-events:none;z-index:99}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<h1>总 控 台</h1>
+<div class="sub">用户管理 · 禁言 · 改名授权 · 弹幕与中奖记录</div>
+
+<div class="krow" id="kRow">
+  <input id="kInput" type="password" placeholder="总控口令" autocomplete="off">
+  <button id="kBtn">进 入</button>
+</div>
+
+<div id="panel" style="display:none">
+  <div class="stat" id="stat"></div>
+  <table>
+    <thead><tr>
+      <th>来宾</th><th>队伍</th><th>红包</th><th>弹幕</th><th>中奖</th><th>操作</th>
+    </tr></thead>
+    <tbody id="userRows"></tbody>
+  </table>
+  <div class="empty" id="empty" style="display:none">还没有来宾入场</div>
+
+  <div class="detail" id="detail"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function(){
+  var API = '';
+  var KEY = '';
+  var $ = function(id){ return document.getElementById(id); };
+  var USERS = [], WALL = [], WINNERS = [], openUid = '';
+
+  function toast(msg){
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('on');
+    clearTimeout(t._t);
+    t._t = setTimeout(function(){ t.classList.remove('on'); }, 2000);
+  }
+
+  function post(data){
+    return fetch(API + '/api/master', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(Object.assign({key:KEY}, data))
+    }).then(function(r){ return r.json(); }).catch(function(){ return {ok:false}; });
+  }
+
+  function esc(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  function fmtTime(ts){
+    if(!ts) return '';
+    var d = new Date(ts);
+    var p = function(n){ return n < 10 ? '0' + n : n; };
+    return p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+
+  function load(){
+    return post({action:'users'}).then(function(r){
+      if(!r.ok) return;
+      USERS = r.users || [];
+      WALL = r.wall || [];
+      WINNERS = r.winners || [];
+      render();
+    });
+  }
+
+  function render(){
+    $('stat').textContent = '共 ' + USERS.length + ' 位来宾 · 禁言 ' +
+      USERS.filter(function(u){ return u.muted; }).length + ' 人 · 祝福 ' + WALL.length + ' 条 · 中奖 ' + WINNERS.length + ' 人';
+
+    var tb = $('userRows');
+    if(!USERS.length){
+      tb.innerHTML = '';
+      $('empty').style.display = 'block';
+      return;
+    }
+    $('empty').style.display = 'none';
+    var html = '';
+    USERS.forEach(function(u){
+      html += '<tr class="' + (u.muted ? 'off' : '') + '">' +
+        '<td><span class="nm">' + esc(u.name) + '</span>' +
+          (u.muted ? '<span class="tag mute">禁言</span>' : '') +
+          (u.renameAllowed ? '<span class="tag ok">可改名</span>' : '') +
+          '<div style="font-size:10px;color:#8C7566;margin-top:2px">' + fmtTime(u.joinedAt) + ' 入场</div></td>' +
+        '<td>' + (u.team === 'a' ? '新娘' : '新郎') + '</td>' +
+        '<td>' + u.coins + '</td>' +
+        '<td>' + u.wallCount + '</td>' +
+        '<td>' + (u.won ? '<b style="color:#E8C87E">' + u.won + '</b>' : '—') + '</td>' +
+        '<td><div class="ops">' +
+          '<button data-act="info" data-uid="' + u.id + '">记录</button>' +
+          '<button class="' + (u.muted ? '' : 'warn') + '" data-act="' + (u.muted ? 'unmute' : 'mute') + '" data-uid="' + u.id + '">' + (u.muted ? '解禁' : '禁言') + '</button>' +
+          '<button data-act="allow" data-uid="' + u.id + '"' + (u.renameAllowed ? ' disabled' : '') + '>允许改名</button>' +
+          '<button data-act="ren" data-uid="' + u.id + '">改名</button>' +
+        '</div></td>' +
+      '</tr>';
+    });
+    tb.innerHTML = html;
+  }
+
+  $('userRows').addEventListener('click', function(e){
+    var btn = e.target.closest('button');
+    if(!btn) return;
+    var act = btn.dataset.act, uid = btn.dataset.uid;
+    var u = USERS.find(function(x){ return x.id === uid; });
+    if(!u) return;
+
+    if(act === 'mute' || act === 'unmute'){
+      post({action:act, uid:uid}).then(function(r){
+        if(r.ok) toast(u.name + (act === 'mute' ? ' 已禁言' : ' 已解禁'));
+        load();
+      });
+    } else if(act === 'allow'){
+      post({action:'allowRename', uid:uid}).then(function(r){
+        if(r.ok) toast('已允许「' + u.name + '」改名一次');
+        load();
+      });
+    } else if(act === 'ren'){
+      var nm = prompt('把「' + u.name + '」改成：');
+      if(!nm) return;
+      post({action:'rename', uid:uid, name:nm.trim()}).then(function(r){
+        if(r.ok) toast('已改为「' + r.name + '」');
+        else toast(r.msg || '失败');
+        load();
+      });
+    } else if(act === 'info'){
+      openUid = uid;
+      post({action:'userWall', uid:uid}).then(function(r){
+        if(!r.ok) return;
+        var box = $('detail');
+        var html = '<h3>' + esc(r.name || u.name) + ' 的记录<em>弹幕 ' + r.msgs.length + ' 条 · 中奖 ' + r.won.length + ' 次</em></h3>';
+        if(r.won.length){
+          html += r.won.map(function(w){
+            return '<div class="msgrow">🏆 中奖 <b>' + esc(w.name) + '</b><i>' + fmtTime(w.ts) + '</i></div>';
+          }).join('');
+        }
+        if(!r.msgs.length){
+          html += '<div class="msgrow">还没发过弹幕</div>';
+        } else {
+          html += r.msgs.slice().reverse().map(function(m){
+            return '<div class="msgrow">' + esc(m.text) + '<i>' + fmtTime(m.ts) + '</i></div>';
+          }).join('');
+        }
+        box.innerHTML = html;
+        box.classList.add('on');
+        box.scrollIntoView({behavior:'smooth', block:'nearest'});
+      });
+    }
+  });
+
+  function enter(){
+    KEY = $('kInput').value.trim();
+    if(!KEY) return;
+    post({action:'users'}).then(function(r){
+      if(r.ok){
+        KEY_OK();
+        load();
+        setInterval(load, 5000);
+      } else {
+        toast(r.msg || '口令不对');
+      }
+    });
+  }
+
+  function KEY_OK(){
+    $('kRow').style.display = 'none';
+    $('panel').style.display = 'block';
+  }
+
+  $('kBtn').addEventListener('click', enter);
+  $('kInput').addEventListener('keydown', function(e){ if(e.key === 'Enter') enter(); });
+
+  /* 地址里带口令就直接进 */
+  var q = new URLSearchParams(location.search);
+  if(q.get('k')){
+    $('kInput').value = q.get('k');
+    enter();
+  }
+})();
+</script>
+</body>
+</html>

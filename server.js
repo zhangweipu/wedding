@@ -11,6 +11,7 @@ const PUBLIC = path.join(ROOT, 'public');
 const DATA_DIR = path.join(ROOT, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'state.json');
 const ADMIN_KEY = process.env.ADMIN_KEY || 'w26-7fk3qm';
+const MASTER_KEY = process.env.MASTER_KEY || 'mx26-83hf9q';
 const MAX_WALL = 300;
 
 const MIME = {
@@ -25,7 +26,12 @@ const MIME = {
   '.ico': 'image/x-icon'
 };
 
-const BLOCK_WORDS = ['傻逼', '操你', '妈的', '赌博', '加微信', '代理', '刷单', '贷款'];
+const BLOCK_WORDS = [
+  '傻逼', '操你', '妈的', '他妈', '特么', '赌博', '加微信', '代理', '刷单', '贷款',
+  '草泥马', '卧槽', '我操', '滚蛋', '滚开', '去死', '贱人', '贱货', '婊', '鸡巴',
+  '白痴', '脑残', '废物', '傻子', '智障', '畜生', '王八', '混蛋', '流氓', '色情',
+  '约炮', '卖淫', '嫖娼', '毒品', '子弹', '枪支', '自杀教程'
+];
 
 function freshState() {
   return {
@@ -198,16 +204,40 @@ async function handleApi(req, res, u) {
 
   if (p === '/api/join') {
     if (!id) return sendJson(res, { ok: false, msg: '缺少标识' }, 400);
-    const name = String(body.name || '').trim().slice(0, 12) || '神秘来宾';
+    const requested = String(body.name || '').trim().slice(0, 12);
+    if (requested && BLOCK_WORDS.some((w) => requested.includes(w))) {
+      return sendJson(res, { ok: false, msg: '这个名字不太合适，换一个吧' });
+    }
     const team = body.team === 'b' ? 'b' : 'a';
-    const g = state.guests[id] || { id, coins: 0 };
-    g.name = name;
-    g.team = team;
+    let g = state.guests[id];
+
+    if (g && g.nameLocked) {
+      // 已绑定设备：改名必须先由总控授权，且只放行一次
+      if (requested && requested !== g.name) {
+        if (!g.renameAllowed) {
+          return sendJson(res, {
+            ok: false, locked: true, name: g.name, team: g.team,
+            msg: '这部手机已绑定「' + g.name + '」，改名需要总控授权'
+          }, 403);
+        }
+        g.name = requested;
+        g.renameAllowed = false; // 授权一次性，改完即收回
+      }
+      if (team !== g.team && body.forceTeam) g.team = team;
+    } else {
+      if (!g) g = { id, coins: 0 };
+      g.name = requested || '神秘来宾';
+      g.team = team;
+      g.nameLocked = true;
+      g.renameAllowed = false;
+      g.muted = false;
+      g.joinedAt = Date.now();
+    }
     g.ts = Date.now();
     state.guests[id] = g;
     markDirty();
     save();
-    return sendJson(res, { ok: true, team });
+    return sendJson(res, { ok: true, team: g.team, name: g.name, locked: true });
   }
 
   if (p === '/api/tap') {
@@ -238,12 +268,14 @@ async function handleApi(req, res, u) {
   if (p === '/api/wall') {
     const g = state.guests[id];
     if (!g) return sendJson(res, { ok: false, msg: '请先入场' });
+    if (g.muted) return sendJson(res, { ok: false, muted: true, msg: '你已被禁言，有疑问请联系工作人员' });
     const text = String(body.text || '').trim().slice(0, 40);
     if (!text) return sendJson(res, { ok: false, msg: '说点什么吧' });
     const now = Date.now();
     if (now - (g.lastWall || 0) < 3000) return sendJson(res, { ok: false, msg: '慢一点，一次一句' });
     if (BLOCK_WORDS.some((w) => text.includes(w))) return sendJson(res, { ok: false, msg: '换个说法试试' });
     g.lastWall = now;
+    g.wallCount = (g.wallCount || 0) + 1;
     state.wall.push({
       id: Math.random().toString(36).slice(2, 9),
       uid: g.id,
@@ -312,6 +344,69 @@ async function handleApi(req, res, u) {
     markDirty();
     save();
     return sendJson(res, { ok: true, state: snapshot('admin', '') });
+  }
+
+  if (p === '/api/master') {
+    const key = body.key || u.searchParams.get('k');
+    if (key !== MASTER_KEY) return sendJson(res, { ok: false, msg: '总控口令不对' }, 403);
+    const a = body.action;
+
+    if (a === 'users') {
+      const wonMap = {};
+      state.winners.forEach((w) => { wonMap[w.uid] = (wonMap[w.uid] || 0) + 1; });
+      const users = Object.values(state.guests).map((g) => ({
+        id: g.id,
+        name: g.name,
+        team: g.team,
+        coins: g.coins || 0,
+        muted: !!g.muted,
+        renameAllowed: !!g.renameAllowed,
+        joinedAt: g.joinedAt || g.ts || 0,
+        wallCount: g.wallCount || 0,
+        won: wonMap[g.id] || 0
+      })).sort((x, y) => y.joinedAt - x.joinedAt);
+      return sendJson(res, { ok: true, users, wall: state.wall.slice(-200), winners: state.winners });
+    }
+
+    if (a === 'mute' || a === 'unmute') {
+      const g = state.guests[body.uid];
+      if (!g) return sendJson(res, { ok: false, msg: '用户不存在' }, 404);
+      g.muted = a === 'mute';
+      markDirty();
+      save();
+      return sendJson(res, { ok: true, uid: g.id, muted: g.muted });
+    }
+
+    if (a === 'allowRename') {
+      const g = state.guests[body.uid];
+      if (!g) return sendJson(res, { ok: false, msg: '用户不存在' }, 404);
+      g.renameAllowed = true;
+      markDirty();
+      save();
+      return sendJson(res, { ok: true, uid: g.id, renameAllowed: true });
+    }
+
+    if (a === 'userWall') {
+      const msgs = state.wall.filter((m) => m.uid === body.uid);
+      const won = state.winners.filter((w) => w.uid === body.uid);
+      const g = state.guests[body.uid] || {};
+      return sendJson(res, { ok: true, name: g.name || '', msgs, won });
+    }
+
+    if (a === 'rename') {
+      // 总控直接替用户改名
+      const g = state.guests[body.uid];
+      const name = String(body.name || '').trim().slice(0, 12);
+      if (!g || !name) return sendJson(res, { ok: false, msg: '参数不对' }, 400);
+      if (BLOCK_WORDS.some((w) => name.includes(w))) return sendJson(res, { ok: false, msg: '名字不合规' });
+      g.name = name;
+      g.renameAllowed = false;
+      markDirty();
+      save();
+      return sendJson(res, { ok: true, uid: g.id, name: g.name });
+    }
+
+    return sendJson(res, { ok: false, msg: 'not found' }, 404);
   }
 
   return sendJson(res, { ok: false, msg: 'not found' }, 404);

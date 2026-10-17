@@ -60,7 +60,19 @@ header{
   border-bottom:1px solid #EDE0D3;flex:0 0 auto;
 }
 .head-title{font-size:15px;color:#6B1B2C;letter-spacing:.1em}
-.head-meta{font-size:12px;color:#A08B7A}
+.head-meta{font-size:12px;color:#A08B7A;display:flex;align-items:center;gap:8px}
+#renameBtn{border:1px solid #E2D2C3;background:#fff;border-radius:10px;color:#A08B7A;font-size:11px;padding:3px 9px;letter-spacing:.08em}
+.modal{position:fixed;inset:0;background:rgba(51,35,28,.42);display:none;align-items:center;justify-content:center;z-index:60;padding:24px}
+.modal.on{display:flex}
+.mbox{background:#FBF7F0;border-radius:16px;padding:22px 20px 16px;width:100%;max-width:320px;box-shadow:0 18px 50px rgba(51,35,28,.25)}
+.mbox .mt{font-family:"Songti SC","STSong",serif;font-size:16px;color:#7A1F30;letter-spacing:.14em;text-align:center;margin-bottom:14px}
+.mbox input{width:100%;box-sizing:border-box;border:1px solid #E2D2C3;border-radius:10px;padding:11px 12px;font-size:15px;background:#fff;color:#33231C}
+.mrow{display:flex;gap:10px;margin-top:14px}
+.mrow button{flex:1;border:0;border-radius:10px;padding:11px 0;font-size:14px;letter-spacing:.1em}
+#renameCancel{background:#F0E4D5;color:#7A655A}
+#renameOk{background:#7A1F30;color:#FDF6EE}
+#renameOk:disabled{opacity:.4}
+.mnote{font-size:11px;color:#A08B7A;text-align:center;margin-top:10px;line-height:1.6}
 .pill{
   display:inline-block;padding:3px 10px;border-radius:20px;background:#F2E4D8;
   font-size:11px;color:#8C7566;letter-spacing:.06em;
@@ -164,7 +176,7 @@ try{
 
 <header>
   <div class="head-title serif" id="phaseTitle">等待开始</div>
-  <div class="head-meta"><span class="pill" id="teamPill">未入场</span></div>
+  <div class="head-meta"><span class="pill" id="teamPill">未入场</span><button id="renameBtn">改名</button></div>
 </header>
 
 <main>
@@ -206,6 +218,15 @@ try{
 </nav>
 
 <div class="toast" id="toast"></div>
+
+<div class="modal" id="renameModal">
+  <div class="mbox">
+    <div class="mt">修改名字</div>
+    <input id="renameInput" maxlength="12" placeholder="新名字" autocomplete="off">
+    <div class="mrow"><button id="renameCancel">取消</button><button id="renameOk">确定</button></div>
+    <div class="mnote" id="renameNote"></div>
+  </div>
+</div>
 
 <script>
 (function(){
@@ -268,10 +289,24 @@ try{
     post('/api/join', {id:me.id, name:me.name, team:me.team}).then(function(r){
       if(r.ok){
         joined = true;
+        document.documentElement.setAttribute('data-joined','1');
         $('gate').style.display = 'none';
         updatePill();
         if(first) toast('进场成功，' + (me.team === 'a' ? '新娘队' : '新郎队'));
         render();
+      } else if(r.locked){
+        // 这部手机已在服务器绑定过名字：以服务器为准，禁止本地改名
+        me.name = r.name; me.team = r.team;
+        localStorage.setItem('wedding_me', JSON.stringify(me));
+        $('nameInput').value = r.name;
+        joined = true;
+        document.documentElement.setAttribute('data-joined','1');
+        $('gate').style.display = 'none';
+        updatePill();
+        toast('本机已绑定「' + r.name + '」，改名需总控授权');
+        render();
+      } else if(r.msg){
+        toast(r.msg);
       }
     });
   }
@@ -279,8 +314,8 @@ try{
   function updatePill(){
     var p = $('teamPill');
     var name = me.team === 'a' ? '新娘队' : '新郎队';
-    p.textContent = (me.name || '来宾') + ' · ' + name;
-    p.className = 'pill';
+    var extra = (S.me && S.me.muted) ? ' · 已禁言' : '';
+    p.textContent = (me.name || '来宾') + ' · ' + name + extra;
   }
 
   /* ---------- 状态推送 ---------- */
@@ -321,6 +356,15 @@ try{
     } else {
       $('tugHint').textContent = '等主持人开始';
     }
+
+    /* 被禁言：锁掉输入框，并明确告知原因 */
+    var muted = !!(S.me && S.me.muted);
+    if($('msgInput')){
+      $('msgInput').disabled = muted;
+      $('msgInput').placeholder = muted ? '你已被禁言，如有疑问请联系工作人员' : '写句祝福，会显示在大屏上';
+    }
+    if($('sendBtn')) $('sendBtn').disabled = muted;
+    if($('renameBtn')) $('renameBtn').style.display = muted ? 'none' : '';
 
     if(S.phase === 'rain' && tab !== 'rain' && S.remain > 0 && !rain.running){
       switchTab('rain');
@@ -524,7 +568,8 @@ try{
     if(Date.now() - lastSend < 3000){ toast('慢一点，一次一句'); return; }
     sendBtn.disabled = true;
     post('/api/wall', {id:me.id, text:text}).then(function(r){
-      setTimeout(function(){ sendBtn.disabled = false; }, 1200);
+      var locked = !!(S.me && S.me.muted);
+      setTimeout(function(){ sendBtn.disabled = locked; }, 1200);
       if(r.ok){
         msgInput.value = '';
         lastSend = Date.now();
@@ -571,6 +616,38 @@ try{
 
   document.querySelectorAll('nav button').forEach(function(b){
     b.addEventListener('click', function(){ switchTab(b.dataset.tab); });
+  });
+
+  /* ---------- 改名（需总控授权） ---------- */
+  $('renameBtn').addEventListener('click', function(){
+    if(!joined){ toast('先进场再改名'); return; }
+    var allowed = !!(S.me && S.me.renameAllowed);
+    $('renameInput').value = me.name;
+    $('renameOk').disabled = !allowed;
+    $('renameNote').textContent = allowed
+      ? '总控已授权，修改后授权自动收回'
+      : '本机已绑定名字，如需修改请联系总控授权';
+    $('renameModal').classList.add('on');
+  });
+  $('renameCancel').addEventListener('click', function(){
+    $('renameModal').classList.remove('on');
+  });
+  $('renameOk').addEventListener('click', function(){
+    var nm = $('renameInput').value.trim();
+    if(!nm){ toast('先写个新名字'); return; }
+    post('/api/join', {id:me.id, name:nm, team:me.team}).then(function(r){
+      if(r.ok){
+        me.name = r.name; me.team = r.team;
+        localStorage.setItem('wedding_me', JSON.stringify(me));
+        updatePill();
+        $('renameModal').classList.remove('on');
+        toast('已改名为「' + r.name + '」');
+      } else if(r.locked){
+        $('renameNote').textContent = r.msg || '尚未获得授权';
+      } else {
+        $('renameNote').textContent = r.msg || '改名失败';
+      }
+    });
   });
 
   /* ---------- 启动 ---------- */
