@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#FAF5EF">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="婚礼互动">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<title>婚礼互动</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html[data-joined] #gate{display:none!important}
+html,body{margin:0;padding:0;height:100%;overflow:hidden}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",sans-serif;
+  background:#FAF5EF;color:#33231C;
+  display:flex;flex-direction:column;
+  -webkit-user-select:none;user-select:none;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.serif{font-family:"Songti SC","STSong",Georgia,serif}
+
+/* 入场 */
+#gate{
+  position:fixed;inset:0;z-index:50;background:#FAF5EF;
+  display:flex;flex-direction:column;justify-content:center;align-items:center;
+  padding:32px 28px;
+}
+#gate .rule{width:1px;height:56px;background:#D9BFA8;margin:18px 0}
+#gate h1{font-size:26px;font-weight:400;letter-spacing:.14em;margin:0;color:#6B1B2C}
+#gate .sub{font-size:12px;letter-spacing:.32em;color:#B08D6E;margin-top:10px}
+#gate .label{font-size:13px;color:#8C7566;margin:26px 0 10px;letter-spacing:.08em}
+#nameInput{
+  width:100%;max-width:300px;height:46px;border:1px solid #E2D2C3;border-radius:10px;
+  background:#fff;padding:0 14px;font-size:16px;color:#33231C;outline:none;text-align:center;
+}
+#nameInput:focus{border-color:#C0A062}
+.teams{display:flex;gap:12px;width:100%;max-width:300px;margin-top:16px}
+.team{
+  flex:1;height:64px;border-radius:10px;border:1px solid #E2D2C3;background:#fff;
+  display:flex;flex-direction:column;justify-content:center;align-items:center;gap:3px;
+  font-size:14px;color:#8C7566;transition:.15s;
+}
+.team .t2{font-size:11px;opacity:.7}
+.team.on{border-color:#8E2A3F;background:#8E2A3F;color:#fff}
+#joinBtn{
+  width:100%;max-width:300px;height:50px;margin-top:22px;border:0;border-radius:10px;
+  background:#8E2A3F;color:#FDF6EE;font-size:16px;letter-spacing:.16em;
+}
+#joinBtn:disabled{opacity:.4}
+
+/* 顶部状态 */
+header{
+  padding:calc(14px + env(safe-area-inset-top)) 20px 12px;
+  display:flex;justify-content:space-between;align-items:center;
+  border-bottom:1px solid #EDE0D3;flex:0 0 auto;
+}
+.head-title{font-size:15px;color:#6B1B2C;letter-spacing:.1em}
+.head-meta{font-size:12px;color:#A08B7A}
+.pill{
+  display:inline-block;padding:3px 10px;border-radius:20px;background:#F2E4D8;
+  font-size:11px;color:#8C7566;letter-spacing:.06em;
+}
+.pill.live{background:#8E2A3F;color:#FDF6EE}
+
+/* 内容 */
+main{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:18px 18px 24px;position:relative}
+.pane{display:none}
+.pane.on{display:block}
+
+/* 拔河 */
+.tug-teams{display:flex;justify-content:space-between;font-size:13px;color:#8C7566;margin-bottom:8px}
+.tug-teams b{font-size:17px;font-weight:500;color:#6B1B2C}
+.bar{height:12px;border-radius:6px;background:#EFE2D5;overflow:hidden;display:flex;margin-bottom:26px}
+.bar i{display:block;height:100%;transition:width .18s}
+.bar .a{background:#8E2A3F}
+.bar .b{background:#C0A062}
+#tapBtn{
+  width:200px;height:200px;border-radius:50%;margin:6px auto 18px;display:flex;
+  flex-direction:column;justify-content:center;align-items:center;
+  background:#8E2A3F;color:#FDF6EE;border:0;
+  box-shadow:0 0 0 12px rgba(142,42,63,.07),0 0 0 24px rgba(142,42,63,.04);
+  transition:transform .05s;
+}
+#tapBtn:active{transform:scale(.96)}
+#tapBtn .big{font-size:30px;letter-spacing:.12em}
+#tapBtn .small{font-size:12px;opacity:.75;margin-top:8px;letter-spacing:.1em}
+#tapBtn:disabled{background:#D8C8BC;box-shadow:none;color:#fff}
+.hint{text-align:center;font-size:12px;color:#A08B7A;line-height:1.7}
+
+/* 红包 */
+.rain-wrap{position:relative;height:60vh;min-height:340px;border-radius:14px;background:#FFFBF5;border:1px solid #EDE0D3;overflow:hidden}
+#rainCanvas{display:block;width:100%;height:100%}
+.rain-mask{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;background:rgba(255,251,245,.94);gap:14px}
+.rain-mask .big{font-size:22px;color:#6B1B2C;letter-spacing:.1em}
+.rain-mask .tip{font-size:12px;color:#A08B7A;text-align:center;line-height:1.8}
+.btn{
+  border:0;border-radius:10px;background:#8E2A3F;color:#FDF6EE;
+  font-size:15px;letter-spacing:.14em;padding:12px 30px;
+}
+.rain-hud{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;font-size:13px;color:#6B1B2C;pointer-events:none}
+.rain-hud b{font-size:20px;font-weight:500}
+
+/* 祝福 */
+.wall-list{margin-top:16px;display:flex;flex-direction:column;gap:10px}
+.wall-item{background:#fff;border:1px solid #F0E4D8;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.6}
+.wall-item .nm{color:#B08D6E;font-size:11px;margin-bottom:3px;letter-spacing:.06em}
+.wall-item.mine{background:#FDF3F4;border-color:#EDD3D7}
+.send-box{display:flex;gap:8px;margin-top:4px}
+#msgInput{
+  flex:1;height:44px;border:1px solid #E2D2C3;border-radius:10px;background:#fff;
+  padding:0 12px;font-size:15px;outline:none;color:#33231C;
+}
+#msgInput:focus{border-color:#C0A062}
+#sendBtn{border:0;border-radius:10px;background:#8E2A3F;color:#FDF6EE;font-size:14px;padding:0 18px;letter-spacing:.1em;white-space:nowrap}
+#sendBtn:disabled{opacity:.45}
+.toast{
+  position:fixed;left:50%;bottom:96px;transform:translateX(-50%);
+  background:rgba(51,35,28,.9);color:#fff;font-size:13px;padding:9px 18px;border-radius:20px;
+  opacity:0;transition:.25s;pointer-events:none;z-index:60;white-space:nowrap;
+}
+.toast.on{opacity:1}
+
+/* 底栏 */
+nav{
+  flex:0 0 auto;display:flex;border-top:1px solid #EDE0D3;background:#FDFAF5;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+nav button{
+  flex:1;border:0;background:none;padding:11px 0 13px;font-size:12px;color:#A08B7A;
+  display:flex;flex-direction:column;align-items:center;gap:4px;letter-spacing:.06em;
+}
+nav button .dot{width:5px;height:5px;border-radius:50%;background:transparent}
+nav button.on{color:#8E2A3F}
+nav button.on .dot{background:#8E2A3F}
+nav .badge{position:absolute;margin-left:26px;margin-top:-4px;width:7px;height:7px;border-radius:50%;background:#C0392B}
+</style>
+</head>
+<body>
+<script>
+try{
+  var _m = JSON.parse(localStorage.getItem('wedding_me') || '{}');
+  if(_m.name) document.documentElement.setAttribute('data-joined','1');
+}catch(e){}
+</script>
+
+<div id="gate">
+  <h1 class="serif">我们结婚啦</h1>
+  <div class="sub">WEDDING · LIVE</div>
+  <div class="rule"></div>
+  <div class="label">留个名字，让新人记住你</div>
+  <input id="nameInput" maxlength="12" placeholder="比如：三姑 / 老王" autocomplete="off">
+  <div class="teams">
+    <div class="team on" data-team="a"><span>新娘队</span><span class="t2">站这边</span></div>
+    <div class="team" data-team="b"><span>新郎队</span><span class="t2">站这边</span></div>
+  </div>
+  <button id="joinBtn" disabled>进 场</button>
+  <div class="hint" style="margin-top:10px">想要全屏效果：右上角 ··· →「在浏览器打开」，再「添加到主屏幕」</div>
+</div>
+
+<header>
+  <div class="head-title serif" id="phaseTitle">等待开始</div>
+  <div class="head-meta"><span class="pill" id="teamPill">未入场</span></div>
+</header>
+
+<main>
+  <section class="pane on" id="paneTug">
+    <div class="tug-teams"><span>新娘队 <b id="scoreA">0</b></span><span><b id="scoreB">0</b> 新郎队</span></div>
+    <div class="bar"><i class="a" id="barA" style="width:50%"></i><i class="b" id="barB" style="width:50%"></i></div>
+    <button id="tapBtn" disabled>
+      <span class="big serif">用力</span>
+      <span class="small">点击或摇手机</span>
+    </button>
+    <div class="hint" id="tugHint">等主持人开始</div>
+  </section>
+
+  <section class="pane" id="paneRain">
+    <div class="rain-wrap" id="rainWrap">
+      <canvas id="rainCanvas"></canvas>
+      <div class="rain-hud"><span>得分 <b id="rainScore">0</b></span><span id="rainTime"></span></div>
+      <div class="rain-mask" id="rainMask">
+        <div class="big serif">抢 红 包</div>
+        <div class="tip">手指按住屏幕左右移动<br>接住落下来的金币，45 秒</div>
+        <button class="btn" id="rainStart">开 始</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="pane" id="paneWall">
+    <div class="send-box">
+      <input id="msgInput" maxlength="40" placeholder="写句祝福，会显示在大屏上" autocomplete="off">
+      <button id="sendBtn">发送</button>
+    </div>
+    <div class="wall-list" id="wallList"></div>
+  </section>
+</main>
+
+<nav>
+  <button data-tab="tug" class="on"><span class="dot"></span>拔河</button>
+  <button data-tab="rain"><span class="dot"></span>抢红包</button>
+  <button data-tab="wall"><span class="dot"></span>送祝福</button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  var API = '';
+  var stored = {};
+  try { stored = JSON.parse(localStorage.getItem('wedding_me') || '{}'); } catch(e){}
+  var me = {
+    id: stored.id || ('g' + Math.random().toString(36).slice(2, 10)),
+    name: stored.name || '',
+    team: stored.team || 'a'
+  };
+  var S = { phase:'idle', tug:{a:0,b:0}, remain:0, result:null, wall:[], rank:[], count:0 };
+  var tab = 'tug';
+  var tapBuf = 0;
+  var joined = false;
+
+  var $ = function(id){ return document.getElementById(id); };
+
+  function toast(msg){
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('on');
+    clearTimeout(t._t);
+    t._t = setTimeout(function(){ t.classList.remove('on'); }, 1800);
+  }
+
+  function post(url, data){
+    return fetch(API + url, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(data)
+    }).then(function(r){ return r.json(); }).catch(function(){ return {ok:false}; });
+  }
+
+  /* ---------- 入场 ---------- */
+  var chosenTeam = me.team;
+  document.querySelectorAll('.team').forEach(function(el){
+    el.addEventListener('click', function(){
+      document.querySelectorAll('.team').forEach(function(x){ x.classList.remove('on'); });
+      el.classList.add('on');
+      chosenTeam = el.dataset.team;
+      checkGate();
+    });
+  });
+  $('nameInput').addEventListener('input', checkGate);
+  function checkGate(){
+    $('joinBtn').disabled = !$('nameInput').value.trim();
+  }
+
+  $('joinBtn').addEventListener('click', function(){
+    var nm = $('nameInput').value.trim();
+    if(!nm) return;
+    me.name = nm;
+    me.team = chosenTeam;
+    localStorage.setItem('wedding_me', JSON.stringify(me));
+    doJoin(true);
+  });
+
+  function doJoin(first){
+    post('/api/join', {id:me.id, name:me.name, team:me.team}).then(function(r){
+      if(r.ok){
+        joined = true;
+        $('gate').style.display = 'none';
+        updatePill();
+        if(first) toast('进场成功，' + (me.team === 'a' ? '新娘队' : '新郎队'));
+        render();
+      }
+    });
+  }
+
+  function updatePill(){
+    var p = $('teamPill');
+    var name = me.team === 'a' ? '新娘队' : '新郎队';
+    p.textContent = (me.name || '来宾') + ' · ' + name;
+    p.className = 'pill';
+  }
+
+  /* ---------- 状态推送 ---------- */
+  function connect(){
+    var es = new EventSource(API + '/api/stream?role=phone&id=' + encodeURIComponent(me.id));
+    es.onmessage = function(e){
+      try {
+        S = JSON.parse(e.data);
+        render();
+      } catch(err){}
+    };
+    es.onerror = function(){
+      es.close();
+      setTimeout(connect, 1800);
+    };
+  }
+
+  function render(){
+    var live = S.phase !== 'idle' && S.remain > 0;
+    var titles = {idle:'等待开始', tug:'拔河大战', rain:'抢红包', wall:'祝福墙'};
+    $('phaseTitle').textContent = live
+      ? titles[S.phase] + ' · ' + S.remain + 's'
+      : titles[S.phase] || '等待开始';
+
+    var a = S.tug.a || 0, b = S.tug.b || 0, total = a + b;
+    var pa = total > 0 ? (a / total * 100) : 50;
+    $('scoreA').textContent = a;
+    $('scoreB').textContent = b;
+    $('barA').style.width = pa + '%';
+    $('barB').style.width = (100 - pa) + '%';
+
+    var canTap = S.phase === 'tug' && S.remain > 0;
+    $('tapBtn').disabled = !canTap;
+    if(S.result){
+      $('tugHint').textContent = S.result.winner === 'a' ? '新娘队赢了！' : '新郎队赢了！';
+    } else if(canTap){
+      $('tugHint').textContent = '还剩 ' + S.remain + ' 秒，别停手';
+    } else {
+      $('tugHint').textContent = '等主持人开始';
+    }
+
+    if(S.phase === 'rain' && tab !== 'rain' && S.remain > 0 && !rain.running){
+      switchTab('rain');
+    }
+
+    renderWall();
+  }
+
+  /* ---------- 拔河：点击 + 摇动 ---------- */
+  var tapBtn = $('tapBtn');
+  tapBtn.addEventListener('pointerdown', function(e){
+    e.preventDefault();
+    bump(1);
+  });
+
+  function bump(n){
+    if(S.phase !== 'tug' || S.remain <= 0) return;
+    tapBuf += n;
+    if(navigator.vibrate) navigator.vibrate(8);
+    tapBtn.style.transform = 'scale(.96)';
+    setTimeout(function(){ tapBtn.style.transform = ''; }, 60);
+  }
+
+  setInterval(function(){
+    if(tapBuf > 0 && joined){
+      var n = tapBuf;
+      tapBuf = 0;
+      post('/api/tap', {id:me.id, n:n});
+    }
+  }, 260);
+
+  var lastMotion = 0, motionBase = 0, motionOn = false;
+  function initMotion(){
+    if(motionOn) return;
+    var start = function(){
+      window.addEventListener('devicemotion', onMotion, false);
+      motionOn = true;
+    };
+    if(typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function'){
+      DeviceMotionEvent.requestPermission().then(function(r){
+        if(r === 'granted') start();
+        else toast('摇一摇权限没开，直接点按钮也可以');
+      }).catch(function(){
+        toast('直接点按钮也可以');
+      });
+    } else {
+      start();
+    }
+  }
+
+  function onMotion(e){
+    var acc = e.accelerationIncludingGravity;
+    if(!acc || acc.x === null) return;
+    var mag = Math.sqrt(acc.x*acc.x + acc.y*acc.y + acc.z*acc.z);
+    if(!motionBase) motionBase = mag;
+    var delta = Math.abs(mag - motionBase);
+    motionBase = motionBase * 0.92 + mag * 0.08;
+    var now = Date.now();
+    if(delta > 11 && now - lastMotion > 90){
+      lastMotion = now;
+      bump(1);
+    }
+  }
+
+  /* ---------- 红包雨 ---------- */
+  var rain = { running:false, coins:[], score:0, endAt:0, raf:0, trayX:0, dpr:1, w:0, h:0 };
+
+  var cv = $('rainCanvas'), ctx = cv.getContext('2d');
+
+  function fitCanvas(){
+    var wrap = $('rainWrap');
+    var r = wrap.getBoundingClientRect();
+    rain.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    rain.w = r.width;
+    rain.h = r.height;
+    cv.width = Math.floor(r.width * rain.dpr);
+    cv.height = Math.floor(r.height * rain.dpr);
+    ctx.setTransform(rain.dpr, 0, 0, rain.dpr, 0, 0);
+    if(!rain.trayX) rain.trayX = r.width / 2;
+  }
+  window.addEventListener('resize', function(){ if(tab === 'rain') fitCanvas(); });
+
+  function startRain(){
+    fitCanvas();
+    rain.running = true;
+    rain.coins = [];
+    rain.score = 0;
+    rain.endAt = Date.now() + 45000;
+    $('rainMask').style.display = 'none';
+    $('rainScore').textContent = '0';
+    rain.coins = [];
+    for(var i=0;i<26;i++) spawnCoin(true);
+    loop();
+    reportTimer = setInterval(function(){
+      post('/api/rain', {id:me.id, coins:rain.score});
+    }, 3000);
+  }
+
+  var reportTimer = null;
+
+  function spawnCoin(init){
+    var r = 13 + Math.random() * 7;
+    rain.coins.push({
+      x: r + Math.random() * Math.max(10, rain.w - r * 2),
+      y: init ? -Math.random() * rain.h : -r * 2,
+      r: r,
+      vy: 110 + Math.random() * 130,
+      rot: Math.random() * 6
+    });
+  }
+
+  function loop(){
+    if(!rain.running) return;
+    var now = Date.now();
+    var left = Math.max(0, (rain.endAt - now) / 1000);
+    $('rainTime').textContent = left > 0 ? Math.ceil(left) + 's' : '';
+    if(left <= 0){ stopRain(); return; }
+
+    ctx.clearRect(0, 0, rain.w, rain.h);
+
+    if(rain.coins.length < 20 && Math.random() < 0.35) spawnCoin(false);
+
+    var trayY = rain.h - 34;
+    ctx.beginPath();
+    ctx.arc(rain.trayX, trayY, 26, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(142,42,63,.14)';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(rain.trayX, trayY, 18, 0, Math.PI * 2);
+    ctx.fillStyle = '#8E2A3F';
+    ctx.fill();
+
+    for(var i = rain.coins.length - 1; i >= 0; i--){
+      var c = rain.coins[i];
+      c.y += c.vy * 0.016;
+      c.rot += 0.02;
+
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      ctx.rotate(Math.sin(c.rot) * 0.25);
+      ctx.beginPath();
+      ctx.arc(0, 0, c.r, 0, Math.PI * 2);
+      ctx.fillStyle = '#C0A062';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(0, 0, c.r - 3, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255,255,255,.55)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = '#FFF8EA';
+      ctx.font = '11px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('福', 0, 0);
+      ctx.restore();
+
+      var hit = Math.abs(c.x - rain.trayX) < c.r + 22 && Math.abs(c.y - trayY) < c.r + 20;
+      if(hit){
+        rain.coins.splice(i, 1);
+        rain.score += 10;
+        $('rainScore').textContent = rain.score;
+        if(navigator.vibrate) navigator.vibrate(10);
+      } else if(c.y > rain.h + c.r * 2){
+        rain.coins.splice(i, 1);
+      }
+    }
+    rain.raf = requestAnimationFrame(loop);
+  }
+
+  function stopRain(){
+    rain.running = false;
+    cancelAnimationFrame(rain.raf);
+    if(reportTimer){ clearInterval(reportTimer); reportTimer = null; }
+    post('/api/rain', {id:me.id, coins:rain.score}).then(function(){
+      $('rainMask').style.display = 'flex';
+      $('rainMask').innerHTML = '<div class="big serif">本轮 ' + rain.score + ' 分</div>' +
+        '<div class="tip" id="rainTip">等主持人公布排名</div>' +
+        '<button class="btn" id="rainAgain">再 来 一 局</button>';
+      $('rainAgain').addEventListener('click', startRain);
+    });
+  }
+
+  $('rainStart').addEventListener('click', startRain);
+
+  function moveTray(clientX){
+    var r = cv.getBoundingClientRect();
+    rain.trayX = Math.max(24, Math.min(rain.w - 24, clientX - r.left));
+  }
+  cv.addEventListener('touchstart', function(e){ e.preventDefault(); moveTray(e.touches[0].clientX); }, {passive:false});
+  cv.addEventListener('touchmove', function(e){ e.preventDefault(); moveTray(e.touches[0].clientX); }, {passive:false});
+  cv.addEventListener('mousemove', function(e){ if(rain.running) moveTray(e.clientX); });
+
+  /* ---------- 送祝福 ---------- */
+  var sendBtn = $('sendBtn');
+  var msgInput = $('msgInput');
+  var lastSend = 0;
+
+  sendBtn.addEventListener('click', function(){
+    var text = msgInput.value.trim();
+    if(!text) return;
+    if(Date.now() - lastSend < 3000){ toast('慢一点，一次一句'); return; }
+    sendBtn.disabled = true;
+    post('/api/wall', {id:me.id, text:text}).then(function(r){
+      setTimeout(function(){ sendBtn.disabled = false; }, 1200);
+      if(r.ok){
+        msgInput.value = '';
+        lastSend = Date.now();
+        toast('祝福已上墙');
+      } else {
+        toast(r.msg || '发送失败');
+      }
+    });
+  });
+
+  function renderWall(){
+    var list = $('wallList');
+    var items = (S.wall || []).slice(-12).reverse();
+    if(!items.length){
+      list.innerHTML = '<div class="wall-item"><div class="nm">提示</div>还没有人留言，第一个祝福送给他们吧</div>';
+      return;
+    }
+    var html = '';
+    for(var i=0;i<items.length;i++){
+      var m = items[i];
+      html += '<div class="wall-item' + (m.uid === me.id ? ' mine' : '') + '">' +
+        '<div class="nm">' + esc(m.name) + (m.team === 'a' ? ' · 新娘队' : ' · 新郎队') + '</div>' +
+        esc(m.text) + '</div>';
+    }
+    list.innerHTML = html;
+  }
+
+  function esc(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  /* ---------- Tab ---------- */
+  function switchTab(name){
+    tab = name;
+    document.querySelectorAll('nav button').forEach(function(b){
+      b.classList.toggle('on', b.dataset.tab === name);
+    });
+    document.querySelectorAll('.pane').forEach(function(p){ p.classList.remove('on'); });
+    $('pane' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('on');
+    if(name === 'rain') setTimeout(fitCanvas, 50);
+  }
+
+  document.querySelectorAll('nav button').forEach(function(b){
+    b.addEventListener('click', function(){ switchTab(b.dataset.tab); });
+  });
+
+  /* ---------- 启动 ---------- */
+  if(me.name){
+    $('nameInput').value = me.name;
+    document.querySelectorAll('.team').forEach(function(el){
+      el.classList.toggle('on', el.dataset.team === me.team);
+    });
+    checkGate();
+    doJoin(false);
+  }
+
+  connect();
+
+  document.addEventListener('touchstart', function once(){
+    initMotion();
+    document.removeEventListener('touchstart', once);
+  }, {once:true});
+
+  // 防止双指缩放
+  document.addEventListener('gesturestart', function(e){ e.preventDefault(); });
+})();
+</script>
+</body>
+</html>

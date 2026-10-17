@@ -1,0 +1,13 @@
+{
+  "name": "wedding-live",
+  "version": "1.0.0",
+  "private": true,
+  "description": "婚礼现场互动：摇一摇拔河、抢红包、祝福墙",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "婚礼现场互动",
+  "short_name": "婚礼互动",
+  "start_url": "/",
+  "display": "fullscreen",
+  "background_color": "#FAF5EF",
+  "theme_color": "#7A1F30",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

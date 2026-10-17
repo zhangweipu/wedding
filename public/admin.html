@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#F7F2EA">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="婚礼控制台">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<title>主持人控制台</title>
+<script src="qrcode.js"></script>
+<script src="qrcode-utf8.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{
+  font-family:-apple-system,"PingFang SC","Helvetica Neue",sans-serif;
+  background:#F7F2EA;color:#33231C;padding:16px 14px 40px;max-width:620px;margin:0 auto;
+}
+h1{font-size:17px;font-weight:500;letter-spacing:.12em;color:#6B1B2C;margin-bottom:3px}
+.sub{font-size:11px;color:#A08B7A;letter-spacing:.1em;margin-bottom:16px}
+.card{background:#fff;border:1px solid #EEE0D0;border-radius:12px;padding:14px;margin-bottom:12px}
+.card h2{font-size:12px;font-weight:500;color:#A08B7A;letter-spacing:.14em;margin-bottom:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+button{
+  border:1px solid #E2D2C3;background:#fff;border-radius:9px;color:#5C4739;
+  font-size:13px;padding:10px 14px;letter-spacing:.06em;flex:1;min-width:0;
+}
+button.primary{background:#8E2A3F;border-color:#8E2A3F;color:#FDF6EE}
+button.ghost{background:#FDF3F4;border-color:#EDD3D7;color:#8E2A3F}
+button:active{opacity:.75}
+button:disabled{opacity:.4}
+.phases{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.phases button{flex:none}
+.phases button.on{background:#6B1B2C;border-color:#6B1B2C;color:#fff}
+.status{display:flex;align-items:center;justify-content:space-between;font-size:13px;color:#5C4739}
+.status .big{font-size:26px;color:#6B1B2C;font-weight:400}
+.status .big small{font-size:12px;color:#A08B7A;margin-left:4px}
+.linkbox{
+  display:flex;align-items:center;gap:12px;
+}
+#qr{width:96px;height:96px;flex:0 0 auto;background:#fff}
+#qr svg{width:96px;height:96px;display:block}
+.linktext{flex:1;min-width:0}
+.linktext code{
+  display:block;font-size:12px;color:#6B1B2C;word-break:break-all;
+  background:#FDF8F2;border:1px solid #F0E4D8;border-radius:8px;padding:8px;margin-bottom:8px;
+  font-family:ui-monospace,Menlo,monospace;
+}
+.mini{font-size:11px;color:#A08B7A;line-height:1.7}
+.list{max-height:230px;overflow:auto;margin-top:4px}
+.item{
+  display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed #F0E4D8;
+  font-size:13px;
+}
+.item:last-child{border-bottom:0}
+.item .nm{flex:1;color:#3A2A20;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .tag{font-size:10px;color:#B08D3F;letter-spacing:.06em;flex:0 0 auto}
+.item .del{color:#B34A4A;font-size:12px;background:none;border:0;padding:2px 6px;flex:0 0 auto;min-width:0}
+.item .co{font-size:12px;color:#8E2A3F;flex:0 0 auto}
+.empty{font-size:12px;color:#B9A48E;padding:10px 0}
+.wins{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.wins span{background:#FDF0F2;border:1px solid #EDD3D7;color:#8E2A3F;font-size:12px;padding:5px 10px;border-radius:20px}
+#gate{
+  position:fixed;inset:0;background:#F7F2EA;display:flex;flex-direction:column;
+  justify-content:center;align-items:center;gap:14px;padding:30px;z-index:20;
+}
+#gate input{
+  width:260px;height:46px;border:1px solid #E2D2C3;border-radius:10px;
+  text-align:center;font-size:16px;outline:none;background:#fff;
+}
+#gate button{width:260px;flex:none}
+.tip{font-size:11px;color:#B9A48E;text-align:center;line-height:1.8}
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <h1>主持人控制台</h1>
+  <div class="sub">输入口令进入</div>
+  <input id="keyInput" placeholder="口令" autocomplete="off">
+  <button class="primary" id="keyBtn">进 入</button>
+  <div class="tip">口令在服务器环境变量 ADMIN_KEY 里</div>
+</div>
+
+<h1>主持人控制台</h1>
+<div class="sub">婚礼现场互动 · 全场同步</div>
+
+<div class="card">
+  <h2>入场二维码</h2>
+  <div class="linkbox">
+    <div id="qr"></div>
+    <div class="linktext">
+      <code id="linkText"></code>
+      <div class="row">
+        <button class="ghost" id="openScreen">打开大屏</button>
+        <button class="ghost" id="copyLink">复制链接</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>当前状态</h2>
+  <div class="status">
+    <div>
+      <div class="big" id="remain">—<small>秒</small></div>
+      <div style="font-size:11px;color:#A08B7A;margin-top:2px" id="phaseName">待机中</div>
+    </div>
+    <div style="text-align:right;font-size:12px;color:#8C7566">
+      已入场 <b id="cnt" style="color:#6B1B2C;font-size:16px">0</b> 人<br>
+      <span id="scores" style="font-size:11px"></span>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>切换环节</h2>
+  <div class="phases">
+    <button data-phase="idle">待机 / 二维码</button>
+    <button data-phase="tug">拔河大战</button>
+    <button data-phase="rain">抢红包</button>
+    <button data-phase="wall">祝福墙</button>
+  </div>
+  <div class="row" style="margin-top:10px">
+    <button data-dur="30">30 秒</button>
+    <button data-dur="45">45 秒</button>
+    <button data-dur="60" class="dur-on">60 秒</button>
+    <button data-dur="90">90 秒</button>
+  </div>
+  <div class="row" style="margin-top:10px">
+    <button class="primary" id="startBtn">开 始</button>
+    <button id="stopBtn">停 止</button>
+  </div>
+  <div class="row" style="margin-top:8px">
+    <button class="ghost" id="resetTug">拔河清零</button>
+    <button class="ghost" id="resetRain">红包清零</button>
+  </div>
+</div>
+
+<div class="card">
+  <h2>抽奖</h2>
+  <div class="row">
+    <button data-draw="1">抽 1 位</button>
+    <button data-draw="3">抽 3 位</button>
+    <button data-draw="5">抽 5 位</button>
+  </div>
+  <div class="wins" id="winList"></div>
+  <div class="row" style="margin-top:8px">
+    <button class="ghost" id="clearWin">清空中奖名单</button>
+  </div>
+</div>
+
+<div class="card">
+  <h2>祝福管理 <span id="wallCount" style="color:#B9A48E;font-weight:400"></span></h2>
+  <div class="list" id="wallList"></div>
+  <div class="row" style="margin-top:8px">
+    <button class="ghost" id="clearWall">清空所有祝福</button>
+  </div>
+</div>
+
+<div class="card">
+  <h2>来宾名单</h2>
+  <div class="list" id="guestList"></div>
+</div>
+
+<script>
+(function(){
+  var q = new URLSearchParams(location.search);
+  var $ = function(id){ return document.getElementById(id); };
+  var KEY = q.get('k') || localStorage.getItem('wedding_admin_key') || '';
+  var DUR = 60;
+  var S = {phase:'idle', remain:0, tug:{a:0,b:0}, guests:{}, wall:[], winners:[], rank:[], count:0};
+  var ENTRY = location.origin + '/';
+
+  try {
+    var qr = qrcode(0, 'M');
+    qr.addData(ENTRY);
+    qr.make();
+    $('qr').innerHTML = qr.createSvgTag({cellSize: 5, margin: 0, scalable: true});
+  } catch(e){ $('qr').textContent = '二维码异常'; }
+  $('linkText').textContent = ENTRY;
+
+  function api(action, extra){
+    var body = Object.assign({key: KEY, action: action}, extra || {});
+    return fetch('/api/admin', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    }).then(function(r){ return r.json(); }).catch(function(){ return {ok:false, msg:'网络异常'}; });
+  }
+
+  function auth(){
+    if(!KEY){ return; }
+    $('gate').style.display = 'none';
+    connect();
+  }
+
+  $('keyBtn').addEventListener('click', function(){
+    var v = $('keyInput').value.trim();
+    if(!v) return;
+    KEY = v;
+    localStorage.setItem('wedding_admin_key', v);
+    auth();
+  });
+  $('keyInput').addEventListener('keydown', function(e){
+    if(e.key === 'Enter') $('keyBtn').click();
+  });
+
+  function connect(){
+    var es = new EventSource('/api/stream?role=admin');
+    es.onmessage = function(e){
+      try { S = JSON.parse(e.data); render(); } catch(err){}
+    };
+    es.onerror = function(){ es.close(); setTimeout(connect, 1500); };
+  }
+
+  function esc(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  var PHASE_NAME = {idle:'待机中', tug:'拔河大战进行中', rain:'抢红包进行中', wall:'祝福墙展示中'};
+
+  function render(){
+    $('remain').innerHTML = (S.remain > 0 ? S.remain : '—') + '<small>秒</small>';
+    $('phaseName').textContent = PHASE_NAME[S.phase] || '待机中';
+    $('cnt').textContent = S.count || 0;
+    $('scores').textContent = '新娘队 ' + (S.tug.a||0) + ' · 新郎队 ' + (S.tug.b||0);
+
+    document.querySelectorAll('[data-phase]').forEach(function(b){
+      b.classList.toggle('on', b.dataset.phase === S.phase);
+    });
+
+    var wins = S.winners || [];
+    $('winList').innerHTML = wins.length
+      ? wins.map(function(w){ return '<span>' + esc(w.name) + '</span>'; }).join('')
+      : '<span style="background:none;border:0;color:#B9A48E;padding:0;font-size:11px">还没有抽奖</span>';
+
+    var wall = (S.wall || []).slice(-40).reverse();
+    $('wallCount').textContent = S.wall && S.wall.length ? '(' + S.wall.length + ')' : '';
+    $('wallList').innerHTML = wall.length
+      ? wall.map(function(m){
+          return '<div class="item"><div class="nm">' + esc(m.text) + '</div>' +
+            '<div class="tag">' + esc(m.name) + '</div>' +
+            '<button class="del" data-del="' + m.id + '">删</button></div>';
+        }).join('')
+      : '<div class="empty">还没有祝福</div>';
+
+    var gs = Object.values(S.guests || {}).sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
+    $('guestList').innerHTML = gs.length
+      ? gs.map(function(g){
+          return '<div class="item"><div class="nm">' + esc(g.name) + '</div>' +
+            '<div class="tag">' + (g.team === 'a' ? '新娘队' : '新郎队') + '</div>' +
+            (g.coins ? '<div class="co">' + g.coins + ' 分</div>' : '') + '</div>';
+        }).join('')
+      : '<div class="empty">还没有人入场</div>';
+  }
+
+  document.querySelectorAll('[data-phase]').forEach(function(b){
+    b.addEventListener('click', function(){
+      api('phase', {value: b.dataset.phase});
+    });
+  });
+
+  document.querySelectorAll('[data-dur]').forEach(function(b){
+    b.addEventListener('click', function(){
+      DUR = Number(b.dataset.dur);
+      document.querySelectorAll('[data-dur]').forEach(function(x){ x.classList.remove('dur-on','primary'); });
+      b.classList.add('primary');
+    });
+  });
+  document.querySelector('[data-dur="60"]').classList.add('primary');
+
+  $('startBtn').addEventListener('click', function(){
+    api('start', {value: S.phase === 'idle' ? 'tug' : S.phase, duration: DUR});
+  });
+  $('stopBtn').addEventListener('click', function(){ api('stop'); });
+  $('resetTug').addEventListener('click', function(){ api('resetTug'); });
+  $('resetRain').addEventListener('click', function(){ api('resetRain'); });
+  $('clearWin').addEventListener('click', function(){ api('clearWinners'); });
+  $('clearWall').addEventListener('click', function(){ api('clearWall'); });
+
+  document.querySelectorAll('[data-draw]').forEach(function(b){
+    b.addEventListener('click', function(){
+      api('draw', {n: Number(b.dataset.draw)});
+    });
+  });
+
+  $('wallList').addEventListener('click', function(e){
+    var id = e.target.dataset && e.target.dataset.del;
+    if(id) api('delWall', {wallId: id});
+  });
+
+  $('openScreen').addEventListener('click', function(){
+    window.open('/screen', '_blank');
+  });
+  $('copyLink').addEventListener('click', function(){
+    var t = ENTRY;
+    if(navigator.clipboard) navigator.clipboard.writeText(t);
+    $('copyLink').textContent = '已复制';
+    setTimeout(function(){ $('copyLink').textContent = '复制链接'; }, 1500);
+  });
+
+  if(KEY) auth();
+})();
+</script>
+</body>
+</html>

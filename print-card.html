@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>婚礼互动台卡 · 打印</title>
+<script src="public/qrcode.js"></script>
+<script src="public/qrcode-utf8.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:-apple-system,"PingFang SC","Helvetica Neue",sans-serif;
+  background:#EDE7DE;padding:10mm;color:#3A2A20;
+}
+.tipbar{
+  max-width:210mm;margin:0 auto 6mm;background:#fff;border-radius:6px;padding:10px 14px;
+  font-size:12px;color:#8C7566;line-height:1.7;
+}
+.tipbar b{color:#7A1F30}
+.sheet{
+  width:210mm;margin:0 auto;background:#fff;
+  display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;
+}
+.card{
+  padding:9mm 7mm;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:4mm;
+  outline:1px dashed #D8C8B4;outline-offset:-4mm;
+}
+.card .kicker{font-size:2.9mm;letter-spacing:.42em;color:#B08D3F}
+.card .title{
+  font-family:"Songti SC","STSong",Georgia,serif;
+  font-size:6.4mm;letter-spacing:.16em;color:#7A1F30;
+}
+.card .rule{width:12mm;height:1px;background:#D8C8B4}
+.card .qr{width:46mm;height:46mm;padding:2.5mm;background:#fff;border:1px solid #EFE2D2}
+.card .qr svg{width:100%;height:100%;display:block}
+.card .note{font-size:2.9mm;color:#A8917B;letter-spacing:.12em;text-align:center;line-height:1.9}
+.card .tip{font-size:2.4mm;color:#C4B4A2;letter-spacing:.08em;text-align:center;line-height:1.7;margin-top:1.2mm}
+.card .names{
+  font-family:"Songti SC","STSong",Georgia,serif;
+  font-size:3.6mm;letter-spacing:.24em;color:#8C7566;
+}
+@media print{
+  body{background:#fff;padding:0}
+  .tipbar{display:none}
+  .sheet{width:auto;height:auto}
+  @page{size:A4;margin:6mm}
+}
+</style>
+</head>
+<body>
+
+<div class="tipbar">
+  用 <b>Chrome 打开本页 → 打印（⌘P）→ 纸张 A4、边距「默认」、勾选「背景图形」</b>。
+  打印后沿虚线裁成 4 张，一桌放一张，签到台再放一张。<b>二维码是纯黑白的，别缩放变形</b>，扫不出来多半是印小了。
+</div>
+
+<div class="sheet" id="sheet"></div>
+
+<script>
+(function(){
+  var URL = 'https://wedding1-330270-11-1253720254.sh.run.tcloudbase.com/';
+  var cards = [];
+  for(var i = 0; i < 4; i++){
+    cards.push(
+      '<div class="card">' +
+        '<div class="kicker">WEDDING LIVE</div>' +
+        '<div class="title serif">扫码加入婚礼互动</div>' +
+        '<div class="rule"></div>' +
+        '<div class="qr" data-qr="' + i + '"></div>' +
+        '<div class="note">摇一摇拔河 · 抢红包 · 送祝福</div>' +
+        '<div class="tip">若出现「确认访问」提示，点一下即可进入</div>' +
+      '</div>'
+    );
+  }
+  document.getElementById('sheet').innerHTML = cards.join('');
+
+  try {
+    var qr = qrcode(0, 'M');
+    qr.addData(URL);
+    qr.make();
+    var svg = qr.createSvgTag({cellSize: 8, margin: 0, scalable: true});
+    document.querySelectorAll('.qr').forEach(function(el){
+      el.innerHTML = svg;
+      var s = el.querySelector('svg');
+      if(s){ s.removeAttribute('width'); s.removeAttribute('height'); }
+    });
+  } catch(e){
+    document.querySelectorAll('.qr').forEach(function(el){
+      el.textContent = '二维码生成失败，手动输入：' + URL;
+    });
+  }
+})();
+</script>
+</body>
+</html>

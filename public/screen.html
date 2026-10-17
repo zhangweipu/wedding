@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>婚礼现场大屏</title>
+<script src="qrcode.js"></script>
+<script src="qrcode-utf8.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#FBF7F0;color:#3A2A20}
+body{font-family:-apple-system,"PingFang SC","Helvetica Neue",sans-serif}
+.serif{font-family:"Songti SC","STSong",Georgia,serif}
+
+.wrap{position:relative;width:100vw;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* 顶部 */
+.top{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:2.6vh 4vw 2vh;
+}
+.brand{display:flex;align-items:baseline;gap:1.4vw}
+.brand .names{font-size:2.4vw;letter-spacing:.18em;color:#7A1F30}
+.brand .amp{font-size:2vw;color:#B08D3F}
+.brand .en{font-size:.85vw;letter-spacing:.34em;color:#B9A48E;margin-left:.6vw}
+.stat{display:flex;align-items:center;gap:2.4vw;font-size:1vw;color:#9C8674}
+.stat b{font-size:1.9vw;color:#7A1F30;font-weight:500;margin-right:.3vw}
+.hair{height:1px;background:#EADCCB;margin:0 4vw}
+
+/* 全屏按钮：半透明悬停可见，全屏后自动隐没 */
+#fsBtn{
+  position:fixed;top:1.6vh;right:1.6vw;z-index:50;
+  font:inherit;font-size:.95vw;letter-spacing:.14em;
+  color:#9C8674;background:rgba(255,255,255,.72);
+  border:1px solid #E2D2C3;border-radius:2vw;
+  padding:.55vh 1.3vw;cursor:pointer;opacity:.55;
+  transition:opacity .4s, background .4s;
+}
+#fsBtn:hover{opacity:1;background:#fff;color:#7A1F30}
+body.fs{cursor:none}
+body.fs #fsBtn{opacity:0;pointer-events:auto}
+body.fs:hover #fsBtn{opacity:.75}
+
+/* 舞台 */
+.stage{flex:1;position:relative;overflow:hidden}
+.view{
+  position:absolute;inset:0;display:none;
+  padding:3vh 4vw 4vh;
+}
+.view.on{display:flex;flex-direction:column}
+
+/* 待机 / 二维码 */
+.idle{align-items:center;justify-content:center;text-align:center;gap:2vh}
+.idle .lead{font-size:2.6vw;letter-spacing:.3em;color:#7A1F30}
+.idle .sub{font-size:1.05vw;letter-spacing:.22em;color:#A8917B;margin-top:-1vh}
+.qrbox{
+  background:#fff;padding:1.4vw;border-radius:1.2vw;
+  box-shadow:0 1vw 3vw rgba(122,31,48,.08);margin:1vh 0;
+}
+.qrbox svg{display:block;width:17vw;height:17vw}
+.idle .count{font-size:1.15vw;color:#9C8674;letter-spacing:.1em}
+.idle .count b{font-size:2.2vw;color:#7A1F30;font-weight:500;margin:0 .3vw}
+
+/* 拔河 */
+.tug{justify-content:center;gap:3vh}
+.tug-head{display:flex;justify-content:space-between;align-items:flex-end}
+.side{display:flex;flex-direction:column;gap:.6vh}
+.side.b{align-items:flex-end;text-align:right}
+.side .nm{font-size:1.5vw;letter-spacing:.16em;color:#9C8674}
+.side .sc{font-size:4.6vw;line-height:1;color:#7A1F30;font-weight:400}
+.side.b .sc{color:#B08D3F}
+.track{
+  position:relative;height:7vh;border-radius:4vh;background:#F0E4D5;overflow:hidden;
+  border:1px solid #E6D5C2;
+}
+.track .fill{position:absolute;inset:0;display:flex}
+.track .fa{background:#7A1F30;transition:width .18s ease-out}
+.track .fb{background:#B08D3F;flex:1;transition:width .18s ease-out}
+.knot{
+  position:absolute;top:-1vh;bottom:-1vh;width:.35vw;background:#FFFDF8;
+  box-shadow:0 0 1.4vw rgba(0,0,0,.28);transition:left .18s ease-out;
+}
+.knot::after{
+  content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:2.6vh;height:2.6vh;border-radius:50%;background:#FFFDF8;
+  box-shadow:0 0 1.4vw rgba(0,0,0,.2);
+}
+.tug-foot{text-align:center;font-size:1vw;color:#A8917B;letter-spacing:.14em}
+.result{
+  text-align:center;font-size:3.2vw;letter-spacing:.2em;color:#7A1F30;
+}
+
+/* 排行榜 */
+.rank{align-items:center;gap:2vh}
+.rank-title{font-size:1.9vw;letter-spacing:.28em;color:#7A1F30}
+.rank-list{width:62vw;display:flex;flex-direction:column;gap:1.1vh;margin-top:1vh}
+.rrow{
+  display:flex;align-items:center;gap:1.4vw;background:#fff;border:1px solid #F0E2D1;
+  border-radius:1vh;padding:1.1vh 1.8vw;
+}
+.rrow .no{width:2vw;font-size:1.2vw;color:#C4AC93;text-align:center}
+.rrow.top1{background:#FDF0F2;border-color:#EFD2D8}
+.rrow.top1 .no{color:#7A1F30}
+.rrow .nm{flex:1;font-size:1.35vw;color:#3A2A20}
+.rrow .tm{font-size:.9vw;color:#B9A48E;letter-spacing:.08em}
+.rrow .co{font-size:1.6vw;color:#7A1F30;font-weight:500}
+.rank-empty{font-size:1.1vw;color:#B9A48E;letter-spacing:.16em}
+
+/* 祝福墙 */
+.wall{gap:1.6vh}
+.wall-title{font-size:1.9vw;letter-spacing:.28em;color:#7A1F30;text-align:center}
+.wall-grid{
+  flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:1.4vw;
+  align-content:start;overflow:hidden;
+}
+.card{
+  background:#fff;border:1px solid #F0E2D1;border-radius:1vh;padding:1.6vh 1.2vw;
+  font-size:1.05vw;line-height:1.65;color:#3A2A20;
+  animation:pop .45s ease-out both;
+}
+.card:nth-child(4n+1){transform:rotate(-.6deg)}
+.card:nth-child(4n+3){transform:rotate(.5deg)}
+.card .who{font-size:.8vw;color:#B08D3F;letter-spacing:.1em;margin-bottom:.6vh}
+@keyframes pop{from{opacity:0;transform:translateY(1.4vh) scale(.97)}to{opacity:1}}
+.wall-empty{font-size:1.1vw;color:#B9A48E;letter-spacing:.16em;text-align:center;margin-top:8vh}
+
+/* 中奖 */
+.winners{display:flex;flex-wrap:wrap;justify-content:center;gap:1.2vw}
+.wchip{
+  background:#7A1F30;color:#FDF6EE;border-radius:1vh;padding:1.2vh 2vw;
+  font-size:1.5vw;letter-spacing:.08em;animation:pop .5s ease-out both;
+}
+
+/* 底部滚动 */
+.ticker{
+  height:7vh;border-top:1px solid #EADCCB;overflow:hidden;
+  display:flex;align-items:center;background:#FDFAF4;
+}
+.ticker .inner{
+  display:flex;gap:4vw;white-space:nowrap;will-change:transform;
+  animation:slide 38s linear infinite;padding-left:100vw;
+}
+.ticker .inner span{font-size:1.15vw;color:#8C7566;letter-spacing:.06em}
+.ticker .inner em{font-style:normal;color:#B08D3F;margin-right:.8vw}
+@keyframes slide{from{transform:translateX(0)}to{transform:translateX(-100%)}}
+
+/* 右下小二维码常驻 */
+.mini-qr{
+  position:absolute;right:3vw;bottom:9vh;background:#fff;padding:.7vw;
+  border-radius:.8vw;box-shadow:0 .4vw 1.4vw rgba(122,31,48,.1);
+  display:none;text-align:center;
+}
+.mini-qr svg{width:7vw;height:7vw;display:block}
+.mini-qr .t{font-size:.65vw;color:#B9A48E;letter-spacing:.1em;margin-top:.4vh}
+.mini-qr.on{display:block}
+</style>
+</head>
+<body>
+<button id="fsBtn" title="全屏 / 退出全屏（按 F 键也可切换）">⛶ 全 屏</button>
+<div class="wrap">
+  <div class="top">
+    <div class="brand">
+      <span class="names serif" id="names">新郎 &amp; 新娘</span>
+      <span class="en">WEDDING LIVE</span>
+    </div>
+    <div class="stat">
+      <span><b id="guestCount">0</b>位来宾已入场</span>
+      <span id="clock"></span>
+    </div>
+  </div>
+  <div class="hair"></div>
+
+  <div class="stage">
+    <div class="view idle on" id="v-idle">
+      <div class="lead serif">扫码加入婚礼互动</div>
+      <div class="sub">摇 一 摇 · 抢 红 包 · 送 祝 福</div>
+      <div class="qrbox" id="qrBig"></div>
+      <div class="count"><b id="countBig">0</b>位来宾已入场</div>
+    </div>
+
+    <div class="view tug" id="v-tug">
+      <div class="tug-head">
+        <div class="side a">
+          <div class="nm">新 娘 队</div>
+          <div class="sc serif" id="scA">0</div>
+        </div>
+        <div class="side b">
+          <div class="nm">新 郎 队</div>
+          <div class="sc serif" id="scB">0</div>
+        </div>
+      </div>
+      <div class="track">
+        <div class="fill"><div class="fa" id="fillA" style="width:50%"></div><div class="fb" id="fillB" style="width:50%"></div></div>
+        <div class="knot" id="knot" style="left:50%"></div>
+      </div>
+      <div class="tug-foot" id="tugFoot">两队一起摇，绳结过线就赢</div>
+      <div class="result serif" id="tugResult" style="display:none"></div>
+    </div>
+
+    <div class="view rank" id="v-rain">
+      <div class="rank-title serif">红 包 排 行</div>
+      <div class="rank-list" id="rankList"></div>
+    </div>
+
+    <div class="view wall" id="v-wall">
+      <div class="wall-title serif">来 自 亲 友 的 祝 福</div>
+      <div class="wall-grid" id="wallGrid"></div>
+    </div>
+
+    <div class="mini-qr" id="miniQr">
+      <div id="qrMini"></div>
+      <div class="t">扫码加入</div>
+    </div>
+  </div>
+
+  <div class="ticker"><div class="inner" id="ticker"></div></div>
+</div>
+
+<script>
+(function(){
+  var q = new URLSearchParams(location.search);
+  var NAME_A = q.get('a') || '';
+  var NAME_B = q.get('b') || '';
+  if(NAME_A && NAME_B){
+    document.getElementById('names').textContent = NAME_A + ' & ' + NAME_B;
+  } else if(NAME_A){
+    document.getElementById('names').textContent = NAME_A;
+  }
+  var ENTRY = location.origin + '/';
+
+  var $ = function(id){ return document.getElementById(id); };
+  var S = {phase:'idle', tug:{a:0,b:0}, remain:0, result:null, wall:[], rank:[], count:0};
+  var lastWallId = '';
+  var shownWinners = 0;
+
+  function makeQr(el, size){
+    el.innerHTML = '';
+    try {
+      var qr = qrcode(0, 'M');
+      qr.addData(ENTRY);
+      qr.make();
+      el.innerHTML = qr.createSvgTag({cellSize: 6, margin: 0, scalable: true});
+      var svg = el.querySelector('svg');
+      if(svg){ svg.removeAttribute('width'); svg.removeAttribute('height'); }
+    } catch(e){
+      el.textContent = '二维码生成失败，请手动输入：' + ENTRY;
+    }
+  }
+
+  makeQr($('qrBig'));
+  makeQr($('qrMini'));
+
+  function connect(){
+    var es = new EventSource('/api/stream?role=screen');
+    es.onmessage = function(e){
+      try { S = JSON.parse(e.data); render(); } catch(err){}
+    };
+    es.onerror = function(){ es.close(); setTimeout(connect, 1500); };
+  }
+
+  function esc(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  function render(){
+    $('guestCount').textContent = S.count || 0;
+    $('countBig').textContent = S.count || 0;
+
+    var live = S.remain > 0;
+    var key = S.phase;
+    ['idle','tug','rain','wall'].forEach(function(k){
+      $('v-' + k).classList.toggle('on', k === key);
+    });
+    $('miniQr').classList.toggle('on', key !== 'idle');
+
+    var a = S.tug.a || 0, b = S.tug.b || 0, t = a + b;
+    var pa = t > 0 ? (a / t * 100) : 50;
+    $('scA').textContent = a;
+    $('scB').textContent = b;
+    $('fillA').style.width = pa + '%';
+    $('fillB').style.width = (100 - pa) + '%';
+    $('knot').style.left = pa + '%';
+
+    if(S.result){
+      $('tugResult').style.display = 'block';
+      $('tugResult').textContent = S.result.winner === 'a' ? '新娘队 获胜' : '新郎队 获胜';
+      $('tugFoot').style.display = 'none';
+    } else {
+      $('tugResult').style.display = 'none';
+      $('tugFoot').style.display = 'block';
+      $('tugFoot').textContent = live ? '还剩 ' + S.remain + ' 秒，继续摇' : '两队一起摇，绳结过线就赢';
+    }
+
+    renderRank();
+    renderWallList();
+    renderWinners();
+    renderTicker();
+  }
+
+  function renderRank(){
+    var list = $('rankList');
+    var r = S.rank || [];
+    if(!r.length){
+      list.innerHTML = '<div class="rank-empty">还没有人得分，等主持人开始抢红包</div>';
+      return;
+    }
+    var html = '';
+    for(var i=0;i<r.length;i++){
+      var it = r[i];
+      html += '<div class="rrow' + (i === 0 ? ' top1' : '') + '">' +
+        '<div class="no serif">' + it.rank + '</div>' +
+        '<div class="nm">' + esc(it.name) + '</div>' +
+        '<div class="tm">' + (it.team === 'a' ? '新娘队' : '新郎队') + '</div>' +
+        '<div class="co serif">' + it.coins + '</div></div>';
+    }
+    list.innerHTML = html;
+  }
+
+  function renderWallList(){
+    var grid = $('wallGrid');
+    var w = (S.wall || []).slice(-16);
+    if(!w.length){
+      grid.innerHTML = '<div class="wall-empty">等第一条祝福</div>';
+      return;
+    }
+    var html = '';
+    for(var i = w.length - 1; i >= 0; i--){
+      var m = w[i];
+      html += '<div class="card"><div class="who">' + esc(m.name) + '</div>' + esc(m.text) + '</div>';
+    }
+    grid.innerHTML = html;
+  }
+
+  function renderWinners(){
+    var wins = S.winners || [];
+    if(wins.length === shownWinners) return;
+    shownWinners = wins.length;
+    if(!wins.length) return;
+    var v = $('v-rain');
+    var box = $('winnersBox');
+    if(!box){
+      box = document.createElement('div');
+      box.id = 'winnersBox';
+      box.className = 'winners';
+      box.style.marginTop = '3vh';
+      $('rankList').after(box);
+    }
+    box.innerHTML = wins.map(function(w){
+      return '<div class="wchip serif">' + esc(w.name) + '</div>';
+    }).join('');
+  }
+
+  function renderTicker(){
+    var w = (S.wall || []).slice(-18);
+    var inner = $('ticker');
+    if(!w.length){ inner.innerHTML = '<span>扫码加入，把你的祝福送上大屏</span>'; return; }
+    inner.innerHTML = w.map(function(m){
+      return '<span><em>' + esc(m.name) + '</em>' + esc(m.text) + '</span>';
+    }).join('');
+  }
+
+  function tick(){
+    var d = new Date();
+    var p = function(n){ return n < 10 ? '0' + n : n; };
+    $('clock').textContent = p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+  tick();
+  setInterval(tick, 15000);
+
+  connect();
+
+  /* —— 全屏控制 —— */
+  var fsBtn = document.getElementById('fsBtn');
+  var autoFs = false;
+  function isFs(){
+    return !!(document.fullscreenElement || document.webkitFullscreenElement);
+  }
+  function goFs(){
+    var el = document.documentElement;
+    var fn = el.requestFullscreen || el.webkitRequestFullscreen;
+    if(!fn) return;
+    try {
+      var p = fn.call(el);
+      if(p && p.then){
+        p.then(function(){
+          /* 安卓平板/手机投屏时锁定横屏；电脑浏览器会静默失败，无影响 */
+          try {
+            if(screen.orientation && screen.orientation.lock){
+              screen.orientation.lock('landscape').catch(function(){});
+            }
+          } catch(e){}
+        }).catch(function(){});
+      }
+    } catch(e){}
+  }
+  function exitFs(){
+    var fn = document.exitFullscreen || document.webkitExitFullscreen;
+    if(fn) fn.call(document);
+  }
+  function toggleFs(){ isFs() ? exitFs() : goFs(); }
+  function updFs(){
+    document.body.classList.toggle('fs', isFs());
+    fsBtn.textContent = isFs() ? '⛶ 退出全屏' : '⛶ 全 屏';
+  }
+  fsBtn.addEventListener('click', function(e){
+    e.stopPropagation();
+    toggleFs();
+  });
+  /* 第一次点击页面任意位置即进入全屏（浏览器要求必须由用户手势触发） */
+  document.addEventListener('click', function(e){
+    if(e.target === fsBtn) return;
+    if(!autoFs && !isFs()){ autoFs = true; goFs(); }
+  }, true);
+  document.addEventListener('fullscreenchange', updFs);
+  document.addEventListener('webkitfullscreenchange', updFs);
+  /* Esc 退出全屏后同步按钮状态 */
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'f' || e.key === 'F'){ toggleFs(); }
+  });
+})();
+</script>
+</body>
+</html>
