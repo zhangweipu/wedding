@@ -147,6 +147,115 @@ body.fs:hover #fsBtn{opacity:.7}
   font-size:1.5vw;letter-spacing:.08em;animation:pop .5s ease-out both;
 }
 
+/* 倒计时（之前没人点击时秒数不动，服务端已修，这里负责显示） */
+.cd{
+  display:none;align-items:center;gap:.55vw;
+  background:#7A1F30;color:#FDF6EE;border-radius:2vw;padding:.5vh 1.1vw;
+  font-size:1vw;letter-spacing:.12em;
+}
+.cd.on{display:inline-flex}
+.cd b{font-size:1.55vw;font-weight:500;font-variant-numeric:tabular-nums}
+.cd .dot{width:.55vw;height:.55vw;border-radius:50%;background:#FDF6EE;animation:blink 1s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* 小汽车冲刺 */
+.race{gap:1vh}
+.race-head{display:flex;justify-content:space-between;align-items:flex-end}
+.race-title{font-size:1.9vw;letter-spacing:.28em;color:#7A1F30}
+.race-sub{font-size:.95vw;color:#A8917B;letter-spacing:.14em}
+.race-bar{height:.7vh;border-radius:.4vh;background:#EFE2D5;overflow:hidden;margin:.8vh 0 .2vh}
+.race-bar i{display:block;height:100%;background:linear-gradient(90deg,#C0A062,#7A1F30);transition:width .3s linear}
+.road{
+  position:relative;flex:1;margin-top:.6vh;border-radius:1.6vh;overflow:hidden;
+  background:linear-gradient(180deg,#BEE3F6 0%,#DAEFFA 28%,#DAEFFA 32%,#93CC7C 32%,#7FBC6E 70%,#6FAE60 100%);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.55);
+}
+.road .asphalt{
+  position:absolute;left:0;right:0;top:30%;bottom:9%;z-index:1;
+  background:linear-gradient(180deg,#73706B,#5A5752 45%,#4E4B47);
+  box-shadow:inset 0 .35vh 0 rgba(255,255,255,.22), inset 0 -.35vh 0 rgba(0,0,0,.18);
+}
+.road .asphalt::before{
+  content:"";position:absolute;left:0;right:0;top:50%;height:.55vh;transform:translateY(-50%);
+  background:repeating-linear-gradient(90deg,#F7EEDC 0 2.6vw,transparent 2.6vw 5.2vw);
+  animation:dash .8s linear infinite;opacity:.85;
+}
+@keyframes dash{from{background-position:0 0}to{background-position:-5.2vw 0}}
+.road .finish{
+  position:absolute;top:0;bottom:0;right:5%;width:1.1vw;z-index:2;
+  background:repeating-linear-gradient(180deg,#FFFDF8 0 1.6vh,#3A2A20 1.6vh 3.2vh);
+  opacity:.9;
+}
+.road .finish::after{
+  content:"终 点";position:absolute;top:-3.2vh;left:50%;transform:translateX(-50%);
+  font-size:.9vw;letter-spacing:.22em;color:#7A1F30;white-space:nowrap;
+}
+.road .cloud{
+  position:absolute;width:7vw;height:2.4vh;border-radius:2vh;background:rgba(255,255,255,.85);
+  animation:drift linear infinite;
+}
+.road .cloud::after{
+  content:"";position:absolute;left:18%;top:-60%;width:60%;height:150%;border-radius:50%;background:inherit;
+}
+@keyframes drift{from{transform:translateX(110vw)}to{transform:translateX(-12vw)}}
+
+.car{
+  position:absolute;width:8.6vw;height:5.4vh;z-index:3;
+  transition:left .5s cubic-bezier(.25,.9,.3,1), top .6s ease;
+}
+.car svg{width:100%;height:100%;display:block;filter:drop-shadow(0 .35vh .5vh rgba(0,0,0,.2))}
+.car .wh{transform-box:fill-box;transform-origin:center}
+.car.boost .wh{animation:spin .32s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.car.boost svg{animation:jiggle .16s linear infinite}
+@keyframes jiggle{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-.35vh) rotate(-1.2deg)}}
+.car.boost::before{
+  content:"";position:absolute;right:96%;top:52%;width:3.4vw;height:.32vh;
+  background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.95));border-radius:.2vh;
+}
+/* 头像从天窗探出来 */
+.car .ava{
+  position:absolute;left:52%;top:-2.1vh;transform:translateX(-50%);
+  width:3.6vh;height:3.6vh;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.6vh;color:#fff;border:.36vh solid #FFFDF8;
+  box-shadow:0 .3vh .6vh rgba(0,0,0,.18);
+  animation:bob 1.2s ease-in-out infinite;
+}
+@keyframes bob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-.55vh)}}
+.car .who{
+  position:absolute;left:50%;bottom:-2.9vh;transform:translateX(-50%);white-space:nowrap;
+  font-size:.92vw;letter-spacing:.06em;color:#3A2A20;background:rgba(255,255,255,.88);
+  padding:.25vh .8vw;border-radius:1vh;
+}
+.car .no{
+  position:absolute;right:-.2vw;top:-1.6vh;font-size:.95vw;color:#7A1F30;font-weight:500;
+  background:#FFFDF8;border-radius:1vh;padding:0 .5vw;
+}
+.car.lead .no{background:#7A1F30;color:#FDF6EE}
+
+/* 领奖台 */
+.podium{
+  position:absolute;inset:0;z-index:8;display:none;
+  flex-direction:column;align-items:center;justify-content:center;gap:2.4vh;
+  background:rgba(251,247,240,.94);
+  animation:pop .5s ease-out both;
+}
+.podium.on{display:flex}
+.podium h2{font-size:2.4vw;letter-spacing:.3em;color:#7A1F30;font-weight:400}
+.podium .row{display:flex;align-items:flex-end;gap:2.6vw}
+.pod{display:flex;flex-direction:column;align-items:center;gap:.8vh}
+.pod .medal{font-size:2.2vw}
+.pod .nm{font-size:1.45vw;color:#3A2A20;letter-spacing:.1em}
+.pod .dist{font-size:.9vw;color:#A8917B}
+.pod .bar{width:7.5vw;border-radius:.7vh .7vh 0 0}
+.pod.p1 .bar{height:13vh;background:linear-gradient(180deg,#D8B871,#C0A062)}
+.pod.p2 .bar{height:10vh;background:linear-gradient(180deg,#DAD3CB,#C4BCB2)}
+.pod.p3 .bar{height:7.6vh;background:linear-gradient(180deg,#D9A681,#C08A62)}
+.confetti{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:9}
+.confetti i{position:absolute;top:-5vh;border-radius:.2vh;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(115vh) rotate(700deg)}}
+
 /* 底部滚动 */
 .ticker{
   height:7vh;border-top:1px solid #EADCCB;overflow:hidden;
@@ -182,6 +291,7 @@ body.fs:hover #fsBtn{opacity:.7}
     <div class="stat">
       <span><b id="guestCount">0</b>位来宾已入场</span>
       <span id="clock"></span>
+      <span class="cd" id="cdChip"><i class="dot"></i>还剩<b id="cdNum">0</b>秒</span>
     </div>
   </div>
   <div class="hair"></div>
@@ -211,6 +321,22 @@ body.fs:hover #fsBtn{opacity:.7}
       </div>
       <div class="tug-foot" id="tugFoot">两队一起摇，绳结过线就赢</div>
       <div class="result serif" id="tugResult" style="display:none"></div>
+    </div>
+
+    <div class="view race" id="v-race">
+      <div class="race-head">
+        <div class="race-title serif">小 汽 车 冲 刺</div>
+        <div class="race-sub" id="raceSub">摇一摇或狂点屏幕，跑得最快的人登顶</div>
+      </div>
+      <div class="race-bar"><i id="raceBar" style="width:0%"></i></div>
+      <div class="road" id="raceRoad">
+        <div class="asphalt"></div>
+        <div class="cloud" style="top:6%;animation-duration:46s"></div>
+        <div class="cloud" style="top:16%;animation-duration:62s;animation-delay:-18s;width:5vw"></div>
+        <div class="finish"></div>
+        <div class="podium" id="racePodium"></div>
+        <div class="confetti" id="raceConfetti"></div>
+      </div>
     </div>
 
     <div class="view rank" id="v-rain">
@@ -245,7 +371,7 @@ body.fs:hover #fsBtn{opacity:.7}
   var ENTRY = location.origin + '/';
 
   var $ = function(id){ return document.getElementById(id); };
-  var S = {phase:'idle', tug:{a:0,b:0}, remain:0, result:null, wall:[], rank:[], count:0};
+  var S = {phase:'idle', tug:{a:0,b:0}, remain:0, duration:60, result:null, wall:[], rank:[], race:[], count:0};
   var lastWallId = '';
   var shownWinners = 0;
 
@@ -286,10 +412,14 @@ body.fs:hover #fsBtn{opacity:.7}
 
     var live = S.remain > 0;
     var key = S.phase;
-    ['idle','tug','rain','wall'].forEach(function(k){
+    ['idle','tug','rain','race','wall'].forEach(function(k){
       $('v-' + k).classList.toggle('on', k === key);
     });
     $('miniQr').classList.toggle('on', key !== 'idle');
+
+    /* 倒计时：由服务端每秒推送，这里只负责显示 */
+    $('cdChip').classList.toggle('on', live);
+    if(live) $('cdNum').textContent = S.remain;
 
     var a = S.tug.a || 0, b = S.tug.b || 0, t = a + b;
     var pa = t > 0 ? (a / t * 100) : 50;
@@ -309,11 +439,143 @@ body.fs:hover #fsBtn{opacity:.7}
       $('tugFoot').textContent = live ? '还剩 ' + S.remain + ' 秒，继续摇' : '两队一起摇，绳结过线就赢';
     }
 
+    renderRace();
+    renderRaceResult();
     renderRank();
     renderWallList();
     renderWinners();
     renderTicker();
     renderDmk();
+  }
+
+  /* ---------- 小汽车冲刺 ---------- */
+  var raceEls = {};
+  var CAR_COLORS = ['#8E2A3F','#C0A062','#B5654A','#7E8F6A','#8C6A9C','#4F7A8C','#C98A5B','#6B8E8A'];
+  function hueOf(name){
+    var h = 0;
+    for(var i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
+    return h;
+  }
+  function carSvg(team){
+    var c = team === 'b' ? '#C0A062' : '#8E2A3F';
+    var d = team === 'b' ? '#A2813F' : '#6B1B2C';
+    return '<svg viewBox="0 0 120 56" xmlns="http://www.w3.org/2000/svg">' +
+      '<ellipse cx="60" cy="51" rx="45" ry="4.5" fill="rgba(0,0,0,.14)"/>' +
+      '<path d="M9 41c0-1 .6-2 1.6-3.2L19 25c2-3 5-4.6 8.6-4.8l18-1.4h14c5.4 0 10 2.2 13.6 6l11.4 10c3.6 3 5.4 5.2 5.4 8.2 0 3-2 5-5 5H14c-3 0-5-2-5-5z" fill="' + c + '"/>' +
+      '<path d="M31 25h24l9 8.6H29z" fill="#FDF6EE" opacity=".82"/>' +
+      '<rect x="13" y="36" width="94" height="3.4" rx="1.7" fill="' + d + '" opacity=".45"/>' +
+      '<g class="wh"><circle cx="34" cy="43" r="9" fill="#3A2A20"/><circle cx="34" cy="43" r="3.4" fill="#E8DCC8"/></g>' +
+      '<g class="wh"><circle cx="86" cy="43" r="9" fill="#3A2A20"/><circle cx="86" cy="43" r="3.4" fill="#E8DCC8"/></g>' +
+      '<rect x="103" y="30" width="9" height="5" rx="2.2" fill="#FFF3D0"/>' +
+      '</svg>';
+  }
+  function renderRace(){
+    var list = S.race || [];
+    var road = $('raceRoad');
+    var max = 0;
+    list.forEach(function(it){ if(it.dist > max) max = it.dist; });
+    var target = Math.max(220, max); // 里程基准：领跑者最多跑到 84% 处
+    var n = Math.max(1, Math.min(list.length, 6)); // 最多 6 条车道，太挤会看不清
+    var laneH = 74 / n;
+
+    list.forEach(function(it, i){
+      var el = raceEls[it.id];
+      if(!el){
+        el = document.createElement('div');
+        el.className = 'car';
+        el.innerHTML = carSvg(it.team) +
+          '<div class="ava" style="background:hsl(' + hueOf(it.name) + ',42%,52%)"></div>' +
+          '<div class="who"></div><div class="no"></div>';
+        road.appendChild(el);
+        raceEls[it.id] = el;
+      }
+      var pos = Math.max(1, Math.min(84, it.dist / target * 84));
+      var prev = parseFloat(el.dataset.pos || '0');
+      el.dataset.pos = pos;
+      el.style.left = pos + '%';
+      el.style.top = (16 + i * laneH) + '%';
+      el.style.zIndex = 10 - i;
+      el.classList.toggle('lead', it.rank === 1);
+      el.querySelector('.ava').textContent = it.name.charAt(0);
+      el.querySelector('.who').textContent = it.name + ' · ' + it.dist;
+      el.querySelector('.no').textContent = '#' + it.rank;
+      if(pos - prev > 0.35){
+        el.classList.add('boost');
+        clearTimeout(el._bt);
+        el._bt = setTimeout(function(){ el.classList.remove('boost'); }, 650);
+      }
+    });
+
+    Object.keys(raceEls).forEach(function(id){
+      var keep = false;
+      for(var i = 0; i < list.length; i++){ if(list[i].id === id){ keep = true; break; } }
+      if(!keep){ raceEls[id].remove(); delete raceEls[id]; }
+    });
+
+    var d = S.duration || 60;
+    $('raceBar').style.width = (d > 0 ? Math.max(0, Math.min(100, S.remain / d * 100)) : 0) + '%';
+  }
+
+  function podiumHtml(top){
+    var order = [1, 0, 2];
+    var medals = ['🥇','🥈','🥉'];
+    var cls = ['p1','p2','p3'];
+    var html = '<h2 class="serif">本 轮 前 三 名</h2><div class="row">';
+    order.forEach(function(idx, k){
+      var it = top[idx];
+      if(!it) return;
+      html += '<div class="pod ' + cls[idx] + '">' +
+        '<div class="medal">' + medals[idx] + '</div>' +
+        '<div class="nm serif">' + esc(it.name) + '</div>' +
+        '<div class="dist">' + it.dist + ' 米</div>' +
+        '<div class="bar"></div></div>';
+    });
+    return html + '</div>';
+  }
+
+  function confetti(){
+    var box = $('raceConfetti');
+    box.innerHTML = '';
+    var colors = ['#8E2A3F','#C0A062','#7CB96E','#6FA8C9','#E0A0A8','#F0D9A8'];
+    for(var i = 0; i < 70; i++){
+      var s = document.createElement('i');
+      var w = 0.4 + Math.random() * 0.6;
+      s.style.left = (Math.random() * 100) + '%';
+      s.style.width = w + 'vw';
+      s.style.height = (w * 1.8) + 'vh';
+      s.style.background = colors[i % colors.length];
+      s.style.animationDuration = (2.2 + Math.random() * 1.8) + 's';
+      s.style.animationDelay = (Math.random() * 1.2) + 's';
+      s.style.opacity = 0.9;
+      box.appendChild(s);
+    }
+    setTimeout(function(){ box.innerHTML = ''; }, 6000);
+  }
+
+  function renderRaceResult(){
+    var pod = $('racePodium');
+    var r = S.result;
+    if(!r || r.kind !== 'race'){
+      if(pod.dataset.sig){ pod.dataset.sig = ''; pod.classList.remove('on'); pod.innerHTML = ''; }
+      return;
+    }
+    if(!r.top || !r.top.length){
+      if(pod.dataset.sig !== 'empty'){
+        pod.dataset.sig = 'empty';
+        pod.innerHTML = '<h2 class="serif">本 轮 结 束</h2><div class="row">' +
+          '<div class="pod p1"><div class="medal">🚗</div><div class="nm">没人出发</div>' +
+          '<div class="dist">下一局让全场一起冲</div><div class="bar"></div></div></div>';
+        pod.classList.add('on');
+      }
+      return;
+    }
+    var sig = r.top.map(function(t){ return t.id + ':' + t.dist; }).join(',');
+    if(pod.dataset.sig !== sig){
+      pod.dataset.sig = sig;
+      pod.innerHTML = podiumHtml(r.top);
+      pod.classList.add('on');
+      confetti();
+    }
   }
 
   /* ---------- 祝福弹幕 ---------- */

@@ -90,10 +90,47 @@ function rank() {
     .map((g, i) => ({ rank: i + 1, name: g.name, team: g.team, coins: g.coins }));
 }
 
+/* 小汽车：按里程排名 */
+function raceRank(limit) {
+  return Object.values(state.guests)
+    .filter((g) => (g.dist || 0) > 0)
+    .sort((a, b) => (b.dist || 0) - (a.dist || 0) || String(a.ts || 0).localeCompare(String(b.ts || 0)))
+    .slice(0, limit || 10)
+    .map((g, i) => ({
+      rank: i + 1,
+      id: g.id,
+      name: g.name,
+      team: g.team,
+      dist: g.dist || 0
+    }));
+}
+
+function racePosOf(id) {
+  const list = Object.values(state.guests).filter((g) => (g.dist || 0) > 0)
+    .sort((a, b) => (b.dist || 0) - (a.dist || 0));
+  const i = list.findIndex((g) => g.id === id);
+  return { pos: i < 0 ? 0 : i + 1, total: list.length };
+}
+
+/* 计时结束 / 手动停止时生成结果 */
+function finishResult() {
+  if (state.phase === 'tug') {
+    return { kind: 'tug', winner: state.tug.a >= state.tug.b ? 'a' : 'b', a: state.tug.a, b: state.tug.b };
+  }
+  if (state.phase === 'race') {
+    return { kind: 'race', top: raceRank(3) };
+  }
+  if (state.phase === 'rain') {
+    return { kind: 'rain', top: rank().slice(0, 3) };
+  }
+  return null;
+}
+
 function snapshot(role, id) {
   const base = {
     phase: state.phase,
     startedAt: state.startedAt,
+    duration: state.duration,
     remain: remainSec(),
     now: Date.now(),
     tug: { a: state.tug.a, b: state.tug.b },
@@ -101,13 +138,15 @@ function snapshot(role, id) {
     winners: state.winners,
     count: Object.keys(state.guests).length,
     wall: state.wall.slice(-30),
-    rank: rank()
+    rank: rank(),
+    race: raceRank(8)
   };
   if (role === 'screen' || role === 'admin') {
     base.guests = state.guests;
     base.wall = state.wall.slice(-60);
   } else {
     base.me = state.guests[id] || null;
+    base.racePos = racePosOf(id);
   }
   return base;
 }
@@ -118,15 +157,23 @@ function markDirty() {
   dirty = true;
 }
 
+/* 关键点：倒计时本身也要推给客户端。
+   以前只有数据变化才广播，没人点击时 remain 会一直卡住不动。 */
+let lastRemain = -1;
+
 setInterval(() => {
-  if (state.phase === 'tug' && !state.result && state.startedAt && !active()) {
-    state.result = {
-      winner: state.tug.a >= state.tug.b ? 'a' : 'b',
-      a: state.tug.a,
-      b: state.tug.b
-    };
+  if (state.startedAt && !active()) {
+    if (!state.result) state.result = finishResult();
+    state.startedAt = 0;
+    lastRemain = -1;
     markDirty();
     save();
+  }
+  if (state.startedAt && active()) {
+    const r = remainSec();
+    if (r !== lastRemain) { lastRemain = r; markDirty(); } // 每秒推一次，秒数才会跳
+  } else {
+    lastRemain = -1;
   }
   if (!dirty || clients.size === 0) return;
   dirty = false;
@@ -225,7 +272,7 @@ async function handleApi(req, res, u) {
       }
       if (team !== g.team && body.forceTeam) g.team = team;
     } else {
-      if (!g) g = { id, coins: 0 };
+      if (!g) g = { id, coins: 0, dist: 0 };
       g.name = requested || '到场贵宾';
       g.team = team;
       g.nameLocked = true;
@@ -242,15 +289,21 @@ async function handleApi(req, res, u) {
 
   if (p === '/api/tap') {
     const g = state.guests[id];
-    if (!g || state.phase !== 'tug' || !active()) return sendJson(res, { ok: false });
+    if (!g || !active()) return sendJson(res, { ok: false });
+    if (state.phase !== 'tug' && state.phase !== 'race') return sendJson(res, { ok: false });
     const now = Date.now();
     if (now - (g.lastTap || 0) < 110) return sendJson(res, { ok: false });
     g.lastTap = now;
+    g.ts = now;
     const n = Math.max(0, Math.min(20, Number(body.n) || 1));
-    if (g.team === 'b') state.tug.b += n;
-    else state.tug.a += n;
+    if (state.phase === 'tug') {
+      if (g.team === 'b') state.tug.b += n;
+      else state.tug.a += n;
+    } else {
+      g.dist = (g.dist || 0) + n;
+    }
     markDirty();
-    return sendJson(res, { ok: true });
+    return sendJson(res, { ok: true, dist: g.dist || 0 });
   }
 
   if (p === '/api/rain') {
@@ -296,24 +349,26 @@ async function handleApi(req, res, u) {
     const a = body.action;
 
     if (a === 'phase') {
-      state.phase = ['idle', 'tug', 'rain', 'wall'].includes(body.value) ? body.value : 'idle';
+      state.phase = ['idle', 'tug', 'rain', 'race', 'wall'].includes(body.value) ? body.value : 'idle';
       state.startedAt = 0;
       state.result = null;
     } else if (a === 'start') {
-      state.phase = body.value || state.phase;
+      state.phase = ['tug', 'rain', 'race', 'wall'].includes(body.value) ? body.value : state.phase;
       state.duration = Math.max(10, Math.min(600, Number(body.duration) || 60));
       state.startedAt = Date.now();
       state.result = null;
       if (state.phase === 'tug') state.tug = { a: 0, b: 0 };
+      if (state.phase === 'race') Object.values(state.guests).forEach((g) => { g.dist = 0; });
+      if (state.phase === 'rain') Object.values(state.guests).forEach((g) => { g.coins = 0; });
     } else if (a === 'stop') {
-      state.result = state.result || {
-        winner: state.tug.a >= state.tug.b ? 'a' : 'b',
-        a: state.tug.a,
-        b: state.tug.b
-      };
+      state.result = state.result || finishResult();
       state.startedAt = 0;
     } else if (a === 'resetTug') {
       state.tug = { a: 0, b: 0 };
+      state.result = null;
+      state.startedAt = 0;
+    } else if (a === 'resetRace') {
+      Object.values(state.guests).forEach((g) => { g.dist = 0; });
       state.result = null;
       state.startedAt = 0;
     } else if (a === 'resetRain') {

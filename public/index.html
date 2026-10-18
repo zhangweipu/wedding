@@ -104,6 +104,32 @@ main{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:18px
 #tapBtn:disabled{background:#D8C8BC;box-shadow:none;color:#fff}
 .hint{text-align:center;font-size:12px;color:#A08B7A;line-height:1.7}
 
+/* 小汽车 */
+.race-hud{display:flex;justify-content:space-around;background:#fff;border:1px solid #EDE0D3;border-radius:12px;padding:12px 8px;margin-bottom:16px}
+.race-hud div{text-align:center}
+.race-hud span{display:block;font-size:11px;color:#A08B7A;letter-spacing:.08em}
+.race-hud b{display:block;font-size:22px;font-weight:500;color:#6B1B2C;line-height:1.4}
+.myroad{position:relative;height:44px;border-radius:22px;background:#EFE2D5;overflow:hidden;margin-bottom:22px}
+.myroad .fill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#C0A062,#8E2A3F);transition:width .3s}
+.myroad .me{position:absolute;top:50%;transform:translateY(-50%);font-size:22px;transition:left .3s}
+#gasBtn{
+  width:200px;height:200px;border-radius:50%;margin:6px auto 18px;display:flex;
+  flex-direction:column;justify-content:center;align-items:center;
+  background:#C0A062;color:#FFFDF8;border:0;
+  box-shadow:0 0 0 12px rgba(192,160,98,.09),0 0 0 24px rgba(192,160,98,.05);
+  transition:transform .05s;
+}
+#gasBtn:active{transform:scale(.96)}
+#gasBtn .big{font-size:32px;letter-spacing:.12em}
+#gasBtn .small{font-size:12px;opacity:.85;margin-top:8px;letter-spacing:.1em}
+#gasBtn:disabled{background:#D8C8BC;box-shadow:none;color:#fff}
+.top3{margin-top:14px;display:flex;flex-direction:column;gap:8px}
+.top3 .t{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #F0E4D8;border-radius:10px;padding:9px 12px;font-size:13px}
+.top3 .t.me{background:#FDF6EA;border-color:#E8D6B4}
+.top3 .t i{font-style:normal;width:22px;text-align:center;font-size:14px}
+.top3 .t b{flex:1;font-weight:400;color:#33231C}
+.top3 .t em{font-style:normal;color:#6B1B2C;font-size:13px}
+
 /* 红包 */
 .rain-wrap{position:relative;height:60vh;min-height:340px;border-radius:14px;background:#FFFBF5;border:1px solid #EDE0D3;overflow:hidden}
 #rainCanvas{display:block;width:100%;height:100%}
@@ -190,13 +216,28 @@ try{
     <div class="hint" id="tugHint">等主持人开始</div>
   </section>
 
+  <section class="pane" id="paneRace">
+    <div class="race-hud">
+      <div><span>我的里程</span><b id="raceDist">0</b></div>
+      <div><span>当前名次</span><b id="raceRank">—</b></div>
+      <div><span>剩余时间</span><b id="raceLeft">—</b></div>
+    </div>
+    <div class="myroad"><div class="fill" id="raceFill" style="width:0%"></div><div class="me" id="raceMe" style="left:0%">🚙</div></div>
+    <button id="gasBtn" disabled>
+      <span class="big serif">冲 啊</span>
+      <span class="small">点击或摇手机</span>
+    </button>
+    <div class="hint" id="raceHint">等主持人开始</div>
+    <div class="top3" id="raceTop3"></div>
+  </section>
+
   <section class="pane" id="paneRain">
     <div class="rain-wrap" id="rainWrap">
       <canvas id="rainCanvas"></canvas>
-      <div class="rain-hud"><span>得分 <b id="rainScore">0</b></span><span id="rainTime"></span></div>
+      <div class="rain-hud"><span>接到 <b id="rainScore">0</b></span><span id="rainTime"></span></div>
       <div class="rain-mask" id="rainMask">
         <div class="big serif">抢 红 包</div>
-        <div class="tip">手指按住屏幕左右移动<br>接住落下来的金币，45 秒</div>
+        <div class="tip">手指按住屏幕左右移动<br>用福袋接住落下来的红包，45 秒</div>
         <button class="btn" id="rainStart">开 始</button>
       </div>
     </div>
@@ -213,6 +254,7 @@ try{
 
 <nav>
   <button data-tab="tug" class="on"><span class="dot"></span>拔河</button>
+  <button data-tab="race"><span class="dot"></span>赛车</button>
   <button data-tab="rain"><span class="dot"></span>抢红包</button>
   <button data-tab="wall"><span class="dot"></span>送祝福</button>
 </nav>
@@ -335,7 +377,7 @@ try{
 
   function render(){
     var live = S.phase !== 'idle' && S.remain > 0;
-    var titles = {idle:'等待开始', tug:'拔河大战', rain:'抢红包', wall:'祝福墙'};
+    var titles = {idle:'等待开始', tug:'拔河大战', race:'小汽车冲刺', rain:'抢红包', wall:'祝福墙'};
     $('phaseTitle').textContent = live
       ? titles[S.phase] + ' · ' + S.remain + 's'
       : titles[S.phase] || '等待开始';
@@ -366,6 +408,33 @@ try{
     if($('sendBtn')) $('sendBtn').disabled = muted;
     if($('renameBtn')) $('renameBtn').style.display = muted ? 'none' : '';
 
+    /* 小汽车 */
+    var canRace = S.phase === 'race' && S.remain > 0;
+    $('gasBtn').disabled = !canRace;
+    var dist = (S.me && S.me.dist) || 0;
+    $('raceDist').textContent = dist;
+    $('raceLeft').textContent = canRace ? S.remain + 's' : '—';
+    var pos = S.racePos || {pos:0, total:0};
+    $('raceRank').textContent = pos.pos ? (pos.pos + '/' + pos.total) : '—';
+    var lead = (S.race && S.race[0] && S.race[0].dist) || 0;
+    var pct = lead > 0 ? Math.max(4, Math.min(96, dist / Math.max(lead, 1) * 96)) : (dist > 0 ? 10 : 0);
+    $('raceFill').style.width = pct + '%';
+    $('raceMe').style.left = 'calc(' + pct + '% - 14px)';
+    if(S.result && S.result.kind === 'race'){
+      var top = S.result.top || [];
+      var mine = -1;
+      for(var i = 0; i < top.length; i++){ if(top[i].id === me.id) mine = i + 1; }
+      $('raceHint').textContent = mine > 0
+        ? '第 ' + mine + ' 名，厉害！'
+        : (top.length ? '冠军是 ' + top[0].name : '本轮结束');
+    } else if(canRace){
+      $('raceHint').textContent = '还剩 ' + S.remain + ' 秒，踩油门别松';
+    } else {
+      $('raceHint').textContent = '等主持人开始';
+    }
+    renderTop3();
+
+    if(S.phase === 'race' && tab !== 'race' && S.remain > 0) switchTab('race');
     if(S.phase === 'rain' && tab !== 'rain' && S.remain > 0 && !rain.running){
       switchTab('rain');
     }
@@ -373,19 +442,38 @@ try{
     renderWall();
   }
 
-  /* ---------- 拔河：点击 + 摇动 ---------- */
+  function renderTop3(){
+    var box = $('raceTop3');
+    var list = (S.race || []).slice(0, 3);
+    if(!list.length){ box.innerHTML = ''; return; }
+    var medals = ['🥇','🥈','🥉'];
+    var html = '';
+    list.forEach(function(it){
+      html += '<div class="t' + (it.id === me.id ? ' me' : '') + '"><i>' + (medals[it.rank - 1] || it.rank) + '</i>' +
+        '<b>' + esc(it.name) + '</b><em>' + it.dist + ' 米</em></div>';
+    });
+    box.innerHTML = html;
+  }
+
+  /* ---------- 拔河 / 小汽车：点击 + 摇动 ---------- */
   var tapBtn = $('tapBtn');
+  var gasBtn = $('gasBtn');
   tapBtn.addEventListener('pointerdown', function(e){
+    e.preventDefault();
+    bump(1);
+  });
+  gasBtn.addEventListener('pointerdown', function(e){
     e.preventDefault();
     bump(1);
   });
 
   function bump(n){
-    if(S.phase !== 'tug' || S.remain <= 0) return;
+    if((S.phase !== 'tug' && S.phase !== 'race') || S.remain <= 0) return;
     tapBuf += n;
     if(navigator.vibrate) navigator.vibrate(8);
-    tapBtn.style.transform = 'scale(.96)';
-    setTimeout(function(){ tapBtn.style.transform = ''; }, 60);
+    var btn = S.phase === 'race' ? gasBtn : tapBtn;
+    btn.style.transform = 'scale(.96)';
+    setTimeout(function(){ btn.style.transform = ''; }, 60);
   }
 
   setInterval(function(){
@@ -466,14 +554,110 @@ try{
   var reportTimer = null;
 
   function spawnCoin(init){
-    var r = 13 + Math.random() * 7;
+    var s = 0.82 + Math.random() * 0.5;
+    var w = 26 * s, h = 34 * s;
     rain.coins.push({
-      x: r + Math.random() * Math.max(10, rain.w - r * 2),
-      y: init ? -Math.random() * rain.h : -r * 2,
-      r: r,
+      x: w / 2 + Math.random() * Math.max(10, rain.w - w),
+      y: init ? -Math.random() * rain.h : -h * 2,
+      w: w,
+      h: h,
       vy: 110 + Math.random() * 130,
-      rot: Math.random() * 6
+      rot: (Math.random() - 0.5) * 0.6,
+      spin: (Math.random() - 0.5) * 0.018
     });
+  }
+
+  function rr(x, y, w, h, r){
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  /* 落下来的红包 */
+  function drawEnvelope(c){
+    var w = c.w, h = c.h;
+    ctx.save();
+    ctx.translate(c.x, c.y);
+    ctx.rotate(c.rot);
+    var g = ctx.createLinearGradient(0, -h / 2, 0, h / 2);
+    g.addColorStop(0, '#D9524A');
+    g.addColorStop(1, '#A2202B');
+    rr(-w / 2, -h / 2, w, h, 3);
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,236,200,.35)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    // 封口
+    ctx.beginPath();
+    ctx.moveTo(-w / 2 + 1, -h / 2 + 1);
+    ctx.lineTo(w / 2 - 1, -h / 2 + 1);
+    ctx.lineTo(w / 2 - 1, -h / 7);
+    ctx.quadraticCurveTo(0, h / 3.2, -w / 2 + 1, -h / 7);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(255,226,196,.26)';
+    ctx.fill();
+    // 福字
+    ctx.fillStyle = '#FFE9C8';
+    ctx.font = (h * 0.36) + 'px "Songti SC",serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('福', 0, h * 0.06);
+    ctx.restore();
+  }
+
+  /* 接红包的福袋 */
+  function drawBag(x, y){
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.beginPath();
+    ctx.moveTo(-25, -4);
+    ctx.quadraticCurveTo(-25, -21, -12, -21);
+    ctx.lineTo(12, -21);
+    ctx.quadraticCurveTo(25, -21, 25, -4);
+    ctx.quadraticCurveTo(25, 15, 0, 22);
+    ctx.quadraticCurveTo(-25, 15, -25, -4);
+    ctx.closePath();
+    var g = ctx.createLinearGradient(0, -20, 0, 22);
+    g.addColorStop(0, '#F0D79A');
+    g.addColorStop(1, '#C0A062');
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(122,31,48,.25)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    // 束口
+    ctx.beginPath();
+    ctx.moveTo(-14, -21);
+    ctx.lineTo(14, -21);
+    ctx.lineTo(12, -27);
+    ctx.lineTo(-12, -27);
+    ctx.closePath();
+    ctx.fillStyle = '#8E2A3F';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-13, -27);
+    ctx.quadraticCurveTo(-22, -32, -12, -34);
+    ctx.moveTo(13, -27);
+    ctx.quadraticCurveTo(22, -32, 12, -34);
+    ctx.strokeStyle = '#8E2A3F';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // 福字
+    ctx.fillStyle = '#8E2A3F';
+    ctx.font = '15px "Songti SC",serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('福', 0, 1);
+    ctx.restore();
   }
 
   function loop(){
@@ -487,47 +671,23 @@ try{
 
     if(rain.coins.length < 20 && Math.random() < 0.35) spawnCoin(false);
 
-    var trayY = rain.h - 34;
-    ctx.beginPath();
-    ctx.arc(rain.trayX, trayY, 26, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(142,42,63,.14)';
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(rain.trayX, trayY, 18, 0, Math.PI * 2);
-    ctx.fillStyle = '#8E2A3F';
-    ctx.fill();
+    var trayY = rain.h - 40;
+    drawBag(rain.trayX, trayY);
 
     for(var i = rain.coins.length - 1; i >= 0; i--){
       var c = rain.coins[i];
       c.y += c.vy * 0.016;
-      c.rot += 0.02;
+      c.rot += c.spin;
 
-      ctx.save();
-      ctx.translate(c.x, c.y);
-      ctx.rotate(Math.sin(c.rot) * 0.25);
-      ctx.beginPath();
-      ctx.arc(0, 0, c.r, 0, Math.PI * 2);
-      ctx.fillStyle = '#C0A062';
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(0, 0, c.r - 3, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(255,255,255,.55)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      ctx.fillStyle = '#FFF8EA';
-      ctx.font = '11px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('福', 0, 0);
-      ctx.restore();
+      drawEnvelope(c);
 
-      var hit = Math.abs(c.x - rain.trayX) < c.r + 22 && Math.abs(c.y - trayY) < c.r + 20;
+      var hit = Math.abs(c.x - rain.trayX) < c.w / 2 + 24 && Math.abs(c.y - trayY) < c.h / 2 + 24;
       if(hit){
         rain.coins.splice(i, 1);
         rain.score += 10;
         $('rainScore').textContent = rain.score;
         if(navigator.vibrate) navigator.vibrate(10);
-      } else if(c.y > rain.h + c.r * 2){
+      } else if(c.y > rain.h + c.h * 2){
         rain.coins.splice(i, 1);
       }
     }
@@ -551,7 +711,7 @@ try{
 
   function moveTray(clientX){
     var r = cv.getBoundingClientRect();
-    rain.trayX = Math.max(24, Math.min(rain.w - 24, clientX - r.left));
+    rain.trayX = Math.max(28, Math.min(rain.w - 28, clientX - r.left));
   }
   cv.addEventListener('touchstart', function(e){ e.preventDefault(); moveTray(e.touches[0].clientX); }, {passive:false});
   cv.addEventListener('touchmove', function(e){ e.preventDefault(); moveTray(e.touches[0].clientX); }, {passive:false});

@@ -121,6 +121,7 @@ button:disabled{opacity:.4}
   <div class="phases">
     <button data-phase="idle">待机 / 二维码</button>
     <button data-phase="tug">拔河大战</button>
+    <button data-phase="race">小汽车冲刺</button>
     <button data-phase="rain">抢红包</button>
     <button data-phase="wall">祝福墙</button>
   </div>
@@ -136,6 +137,7 @@ button:disabled{opacity:.4}
   </div>
   <div class="row" style="margin-top:8px">
     <button class="ghost" id="resetTug">拔河清零</button>
+    <button class="ghost" id="resetRace">赛车清零</button>
     <button class="ghost" id="resetRain">红包清零</button>
   </div>
 </div>
@@ -223,13 +225,18 @@ button:disabled{opacity:.4}
     });
   }
 
-  var PHASE_NAME = {idle:'待机中', tug:'拔河大战进行中', rain:'抢红包进行中', wall:'祝福墙展示中'};
+  var PHASE_NAME = {idle:'待机中', tug:'拔河大战进行中', race:'小汽车冲刺进行中', rain:'抢红包进行中', wall:'祝福墙展示中'};
 
   function render(){
     $('remain').innerHTML = (S.remain > 0 ? S.remain : '—') + '<small>秒</small>';
     $('phaseName').textContent = PHASE_NAME[S.phase] || '待机中';
     $('cnt').textContent = S.count || 0;
-    $('scores').textContent = '新娘队 ' + (S.tug.a||0) + ' · 新郎队 ' + (S.tug.b||0);
+    if(S.phase === 'race'){
+      var top = (S.race || [])[0];
+      $('scores').textContent = top ? '领跑 ' + top.name + ' · ' + top.dist + ' 米' : '还没有人出发';
+    } else {
+      $('scores').textContent = '新娘队 ' + (S.tug.a||0) + ' · 新郎队 ' + (S.tug.b||0);
+    }
 
     document.querySelectorAll('[data-phase]').forEach(function(b){
       b.classList.toggle('on', b.dataset.phase === S.phase);
@@ -255,7 +262,8 @@ button:disabled{opacity:.4}
       ? gs.map(function(g){
           return '<div class="item"><div class="nm">' + esc(g.name) + '</div>' +
             '<div class="tag">' + (g.team === 'a' ? '新娘队' : '新郎队') + '</div>' +
-            (g.coins ? '<div class="co">' + g.coins + ' 分</div>' : '') + '</div>';
+            (g.coins ? '<div class="co">' + g.coins + ' 分</div>' : '') +
+            (g.dist ? '<div class="co">' + g.dist + ' 米</div>' : '') + '</div>';
         }).join('')
       : '<div class="empty">还没有人入场</div>';
   }
@@ -280,6 +288,7 @@ button:disabled{opacity:.4}
   });
   $('stopBtn').addEventListener('click', function(){ api('stop'); });
   $('resetTug').addEventListener('click', function(){ api('resetTug'); });
+  $('resetRace').addEventListener('click', function(){ api('resetRace'); });
   $('resetRain').addEventListener('click', function(){ api('resetRain'); });
   $('clearWin').addEventListener('click', function(){ api('clearWinners'); });
   $('clearWall').addEventListener('click', function(){ api('clearWall'); });
